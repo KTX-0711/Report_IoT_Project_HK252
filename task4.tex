@@ -1,14 +1,14 @@
 \newpage
-% --- BẮT ĐẦU BÁO CÁO TASK 4 (ĐÃ GIẢM 1 CẤP ĐỀ MỤC) ---
+% --- BẮT ĐẦU BÁO CÁO NHIỆM VỤ 4 (ĐÃ GIẢM 1 CẤP ĐỀ MỤC) ---
 
-\subsection{Task 4: Explore Union Filesystems (OverlayFS)}
+\subsection{Nhiệm vụ 4: Khám phá hệ thống tệp hợp nhất (OverlayFS)}
 
-Trong tác vụ này, nhóm nghiên cứu thực hiện khám phá cơ chế hoạt động của OverlayFS trong Docker thông qua việc kiểm tra các lớp (layers), cấu trúc thư mục và cơ chế Copy-on-Write (CoW).
+Trong nhiệm vụ này, nhóm nghiên cứu khám phá cơ chế hoạt động của OverlayFS trong Docker thông qua việc kiểm tra các lớp (layers), cấu trúc thư mục và cơ chế Copy-on-Write (CoW).
 
-\subsubsection{Thực hiện và Kết quả (Implementation \& Results)}
+\subsubsection{Thực hiện và kết quả}
 
-\paragraph{Bước 1: Kiểm tra Layers của Image và thông tin GraphDriver}
-Đầu tiên, nhóm kiểm tra lịch sử các lớp của image \texttt{ubuntu} và thông tin chi tiết về driver lưu trữ. Kết quả cho thấy image được cấu thành từ các lớp read-only.
+\paragraph{Bước 1: Kiểm tra các lớp của image và thông tin GraphDriver}
+Đầu tiên, nhóm kiểm tra lịch sử các lớp của image \texttt{ubuntu} và thông tin chi tiết về driver lưu trữ. Kết quả cho thấy image được cấu thành từ các lớp chỉ đọc.
 
 \begin{small}
 \begin{verbatim}
@@ -44,7 +44,7 @@ vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker image inspect ubuntu
 \end{small}
 
 \paragraph{Bước 2: Phân tích cấu trúc thư mục OverlayFS}
-Kiểm tra cấu trúc thư mục của một container đang chạy (\texttt{oslab}). Hệ thống hiển thị rõ ràng các thư mục \texttt{LowerDir}, \texttt{UpperDir}, và \texttt{MergedDir}.
+Kiểm tra cấu trúc thư mục của một container đang chạy (\texttt{oslab}). Hệ thống hiển thị rõ ràng các thư mục \texttt{LowerDir}, \texttt{UpperDir} và \texttt{MergedDir}.
 
 \begin{small}
 \begin{verbatim}
@@ -66,7 +66,7 @@ vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker container inspect oslab --form
 \end{verbatim}
 \end{small}
 
-\paragraph{Bước 3: Kiểm chứng thay đổi file trên Host (UpperDir)}
+\paragraph{Bước 3: Kiểm chứng thay đổi tệp trên Host (UpperDir)}
 Khi tạo một file mới (\texttt{hello\_world.txt}) bên trong container, file này xuất hiện ngay lập tức tại thư mục \texttt{UpperDir} trên máy chủ (Host), chứng minh cơ chế lưu trữ của OverlayFS.
 
 \begin{small}
@@ -80,7 +80,7 @@ total 4
 \end{verbatim}
 \end{small}
 
-\paragraph{Bước 4: Thí nghiệm về Hiệu quả lưu trữ và Tốc độ}
+\paragraph{Bước 4: Thí nghiệm về hiệu quả lưu trữ và tốc độ}
 Nhóm tạo nhiều container giống nhau (\texttt{test-1, 2, 3}). Kết quả lệnh \texttt{docker system df} cho thấy dung lượng chiếm dụng của các container này rất nhỏ (0B hoặc vài Bytes) do chia sẻ chung Image gốc. Thời gian khởi tạo container chỉ khoảng 0.5 giây.
 
 \begin{small}
@@ -126,7 +126,7 @@ File not exist
 \end{verbatim}
 \end{small}
 
-\subsubsection{Thảo luận và Trả lời câu hỏi (Discussion)}
+\subsubsection{Thảo luận và trả lời câu hỏi}
 
 \textbf{Câu 1: Tại sao chỉ có lớp bị sửa đổi được lưu trữ?}
 \begin{itemize}

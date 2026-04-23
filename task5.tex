@@ -1,18 +1,18 @@
 \newpage
-\subsection{Task 5: Compare Docker Base Images (OS-Level Differences)}
+\subsection{Nhiệm vụ 5: So sánh các base image Docker (khác biệt ở mức hệ điều hành)}
 
-Trong phần này, chúng ta thực hiện so sánh chi tiết ba loại Docker base image: \textbf{Ubuntu}, \textbf{Debian Slim}, và \textbf{Alpine Linux}. Mục tiêu là phân tích sự đánh đổi (trade-off) giữa kích thước image, khả năng tương thích phần mềm, sự phong phú của các công cụ tiện ích (utilities), và hành vi giao tiếp với kernel thông qua thư viện C chuẩn (libc).
+Trong phần này, chúng ta thực hiện so sánh chi tiết ba loại Docker base image: \textbf{Ubuntu}, \textbf{Debian Slim} và \textbf{Alpine Linux}. Mục tiêu là phân tích sự đánh đổi giữa kích thước image, khả năng tương thích phần mềm, độ phong phú của các công cụ tiện ích (utilities) và hành vi giao tiếp với kernel thông qua thư viện C chuẩn (libc).
 
 \subsubsection{Phương pháp thực hiện}
 
-Để đánh giá khách quan các khác biệt ở cấp độ hệ điều hành, chúng tôi đã xây dựng cùng một ứng dụng đơn giản (\texttt{hello.c}) trên ba môi trường Docker khác nhau: \textbf{Ubuntu}, \textbf{Debian Slim} và \textbf{Alpine Linux}. Quy trình kiểm thử được chia thành hai giai đoạn chính: biên dịch và Phân tích hành vi (Build and Trace) và thu thập dữ liệu tự động (Automated Data Collection).
+Để đánh giá khách quan các khác biệt ở cấp độ hệ điều hành, chúng tôi đã xây dựng cùng một ứng dụng đơn giản (\texttt{hello.c}) trên ba môi trường Docker khác nhau: \textbf{Ubuntu}, \textbf{Debian Slim} và \textbf{Alpine Linux}. Quy trình kiểm thử được chia thành hai giai đoạn chính: biên dịch và theo dõi hành vi (Build and Trace), cùng với thu thập dữ liệu tự động (Automated Data Collection).
 
 \begin{enumerate}
-    \item \textbf{Build và Trace (Biên dịch và Theo dõi System Calls):} Quá trình này tạo ra các image chứa ứng dụng đã biên dịch và theo dõi cách ứng dụng giao tiếp với nhân (kernel) của container.
-    \item \textbf{Phân tích tự động (Automated Analysis):} Sử dụng script shell để lập bảng đo lường các yếu tố định lượng như kích thước image, số lượng tiện ích hệ thống, và cường độ sử dụng system call.
+    \item \textbf{Build và Trace (Biên dịch và theo dõi system call):} Quá trình này tạo ra các image chứa ứng dụng đã biên dịch và theo dõi cách ứng dụng giao tiếp với nhân (kernel) của container.
+    \item \textbf{Phân tích tự động (Automated Analysis):} Sử dụng script shell để lập bảng đo lường các yếu tố định lượng như kích thước image, số lượng tiện ích hệ thống và cường độ sử dụng system call.
 \end{enumerate}
 
-\paragraph{Lệnh Build và System Call Tracing}
+\paragraph{Lệnh build và theo dõi system call}
 
 Các lệnh sau được sử dụng để xây dựng các image ứng dụng tương ứng với từng base image, sau đó sử dụng công cụ \texttt{strace} để ghi lại tất cả các system call (lời gọi hệ thống) mà ứng dụng \texttt{./app} thực hiện từ lúc khởi chạy đến khi kết thúc.
 
@@ -32,7 +32,7 @@ $ docker run --rm app-alpine strace ./app
 
 \textbf{Mô tả:} Lệnh \texttt{docker run} thực thi image đã xây dựng. Cờ \texttt{--rm} đảm bảo container tự động bị xóa sau khi dừng. \textbf{\texttt{strace ./app}} là phần quan trọng nhất: \texttt{strace} được đặt làm entrypoint, nó sẽ chặn và ghi lại toàn bộ các lời gọi hệ thống (như \texttt{open}, \texttt{write}, \texttt{read}, \texttt{execve}, v.v.) mà ứng dụng \texttt{./app} tạo ra. Việc so sánh log \texttt{strace} giữa các hệ điều hành sẽ tiết lộ sự khác biệt trong cách các thư viện C chuẩn (\texttt{glibc} và \texttt{musl}) xử lý I/O và khởi tạo môi trường.
 
-\paragraph{Script Thu thập Dữ liệu Tự động}
+\paragraph{Script thu thập dữ liệu tự động}
 
 Script shell sau đây được sử dụng để tự động đo lường và so sánh các thông số kỹ thuật, đảm bảo tính nhất quán trong việc thu thập dữ liệu cho bảng so sánh.
 
@@ -78,7 +78,7 @@ echo ""
     \item \textbf{STRACE (loc):} Đếm số dòng output của \texttt{strace}. Đây là một chỉ số định lượng về số lượng system call mà ứng dụng thực hiện. Sự khác biệt về số lượng sẽ làm rõ cơ chế quản lý tài nguyên và buffering của \texttt{glibc} so với \texttt{musl}.
 \end{itemize}
 
-\subsubsection{Kết quả thực nghiệm }
+\subsubsection{Kết quả thực nghiệm}
 
 Dựa trên đầu ra của khối lệnh Bash tự động hóa, chúng tôi đã thu thập thành công các thông số định lượng quan trọng cho từng image. Bảng số liệu so sánh dưới đây (Hình \ref{fig:docker-comparison}) tổng hợp các chỉ số được đo lường, làm cơ sở cho việc phân tích chuyên sâu các sự khác biệt ở cấp độ kiến trúc.
 
@@ -87,13 +87,13 @@ Dựa trên đầu ra của khối lệnh Bash tự động hóa, chúng tôi đ
 \begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{Task5.png}
-\caption{Hình ảnh bảng so sánh chi tiết các chỉ số kỹ thuật giữa ba Docker Image: Kích thước, Libc, Tiện ích và Cường độ System Call.}
+\caption{Bảng so sánh chi tiết các chỉ số kỹ thuật giữa ba Docker image: kích thước, libc, tiện ích và cường độ system call.}
 \label{fig:docker-comparison}
 \end{figure}
 
 \textit{Lưu ý: Các giá trị số liệu trong bảng (Kích thước theo MB, số lượng Utilities, và số dòng Strace) là kết quả trực tiếp từ môi trường kiểm thử đã thiết lập. Các thông số này phản ánh mối tương quan chặt chẽ giữa sự lựa chọn Libc (\textbf{glibc} vs. \textbf{musl}) và cấu trúc tổng thể của Image. Cụ thể, số lượng System Call (\textbf{STRACE loc}) cung cấp dữ liệu định lượng về sự khác biệt trong cơ chế hoạt động của các thư viện chuẩn C khi ứng dụng khởi chạy.}
 
-\paragraph{Trả lời câu hỏi và Phân tích chuyên sâu}
+\paragraph{Trả lời câu hỏi và phân tích chuyên sâu}
 
 Dựa trên các kết quả thực nghiệm và sự khác biệt về cấu trúc giữa ba loại image, chúng tôi đưa ra các phân tích giải đáp cho các câu hỏi nghiên cứu của Task 5.
 
@@ -105,7 +105,7 @@ Nguyên nhân cốt lõi nằm ở sự khác biệt của thư viện chuẩn C
     \item \textbf{Thiếu hụt các tiện ích mặc định:} Để giữ kích thước nhỏ, Alpine lược bỏ nhiều công cụ và thư viện bổ trợ mà các ứng dụng lớn có thể ngầm định là "đương nhiên phải có" trên hệ thống, dẫn đến lỗi runtime nếu không được cài đặt thủ công.
 \end{itemize}
 
-\paragraph{Sự khác biệt của Libc ảnh hưởng như thế nào đến System Calls?}
+\paragraph{Sự khác biệt của libc ảnh hưởng như thế nào đến system call?}
 
 Kết quả từ công cụ \textbf{strace} cho thấy sự khác biệt rõ rệt trong cách ứng dụng giao tiếp với Kernel:
 \begin{itemize}
