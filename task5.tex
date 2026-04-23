@@ -1,148 +1,189 @@
 \subsection{Nhiệm vụ 5: Triển khai TinyML và đánh giá độ chính xác}
-\textit{[Trình bày luồng tích hợp TinyML, quá trình suy luận trên thiết bị và các thước đo đánh giá.]}
+\subsubsection{Thu thập dữ liệu từ cảm biến (Data Collection)}
 
+Giai đoạn đầu tiên của hệ thống là thu thập dữ liệu thô từ cảm biến nhiệt độ và độ ẩm thông qua giao tiếp Serial. Kịch bản \texttt{collect\_from\_log.py} đóng vai trò là trình lắng nghe và xử lý dữ liệu từ vi điều khiển ESP32.
 
-\subsubsection{Xây dựng tập dữ liệu}
-Đầu tiên, nhóm nghiên cứu thu thập dữ liệu từ cảm biến nhiệt độ và độ ẩm trong môi trường thực tế.
-Trong đó file collect\_form\_log.py có nhiệm vụ đọc log cảm biến từ cổng Serial của ESP32 và chuẩn hóa thành tập dữ liệu thô phục vụ huấn luyện. 
-Script được thiết kế với cơ chế parse nhiều tầng nhằm tăng khả năng tương thích với các định dạng log khác nhau, bao gồm JSON, chuỗi key-value T/H, và định dạng phân tách bằng dấu phẩy.
-\\
-Mỗi mẫu hợp lệ được ghi ngay vào CSV kèm timestamp UTC, giúp đảm bảo tính truy vết của dữ liệu. Để tăng độ tin cậy, hệ thống tự khởi tạo header khi file mới, ghi nối dữ liệu ở các phiên thu thập khác nhau, và flush sau mỗi mẫu để hạn chế mất dữ liệu khi dừng đột ngột. 
-Kết quả của bước này là tập raw\_data ổn định, làm đầu vào trực tiếp cho khâu gán nhãn và tạo tập train\_ready trong pipeline ML.
-Tuy nhiên do nhóm nghiên cứu không thể thu thập data ở trạng thái nhiệt độ, độ ẩm ở mức quá cao hoặc quá thấp nên phải sử dụng các lệnh script khác để tạo thêm dữ liệu đảm bảo tính tổng quát hóa của tập dữ liệu.
-\\
-Tiếp theo, nhóm tiến hành gán nhãn cho tập dữ liệu thô dựa trên các ngưỡng nhiệt độ và độ ẩm đã định nghĩa. Script extract\_ready\_data.py được phát triển để tự động hóa quá trình này, giúp đảm bảo tính nhất quán và giảm thiểu sai sót so với gán nhãn thủ công.
-Quy tắc gán nhán được thiết lập dựa trên các mức nhiệt độ và độ ẩm, ví dụ:
 \begin{itemize}
-    \item Khi độ ẩm nằm ngoài khoảng [0-100\%] hoặc nhiệt độ nằm ngoài khoảng [-40°C đến 100°C], mẫu được gán nhãn "Không hợp lệ".
-    \item Khi nhiệt độ nhỏ hơn 24°C thì sẽ được gán nhãn là "Bật máy sưởi".
-    \item Khi nhiệt độ lớn hơn 33°C và độ ẩm nằm trong khoảng [0-80\%] thì sẽ được gán nhãn là "Bật điều hòa".
-    \item Khi nhiệt độ lớn hơn 33°C và độ ẩm lớn hơn 80\% thì sẽ được gán nhãn là "Bật máy hút ẩm".
-    \item Còn lại sẽ được gán nhãn là "Chế độ bình thường".
+    \item \textbf{Giao tiếp Serial:} Sử dụng thư viện \texttt{pyserial} để thiết lập kết nối UART với Baudrate mặc định là 115200. Hệ thống liên tục đọc các dòng log từ cổng chỉ định (ví dụ: COM4).
+    \item \textbf{Cơ chế phân tích (Parsing):} Để đảm bảo tính linh hoạt, kịch bản hỗ trợ ba định dạng đầu vào khác nhau thông qua hàm \texttt{parse\_temp\_humi\_from\_line}:
+    \begin{enumerate}
+        \item \textbf{JSON:} Phân tích chuỗi có dạng \texttt{\{"temperature": X, "humidity": Y\}}.
+        \item \textbf{Regex:} Sử dụng biểu thức chính quy \texttt{T\textbackslash s*=\textbackslash s*(...)\textbackslash D+H\textbackslash s*=\textbackslash s*(...)} để tìm các mẫu như "T=30.5 H=65.2".
+        \item \textbf{CSV Fallback:} Nếu không khớp các định dạng trên, hệ thống sẽ tự động tách chuỗi bằng dấu phẩy và lấy hai giá trị cuối cùng.
+    \end{enumerate}
+    \item \textbf{Lưu trữ dữ liệu:} Dữ liệu sau khi trích xuất thành công được gắn nhãn thời gian thực (ISO 8601) và ghi nối tiếp vào tệp \texttt{raw\_data.csv} bằng \texttt{csv.DictWriter}.
 \end{itemize}
 
-Lúc này tập dữ liệu đã được gán nhãn sẽ được lưu vào file train\_ready.csv, sẵn sàng cho bước huấn luyện mô hình ML.
-\subsubsection{Huấn luyện các mô hình và đánh giá để chọn mô hình phù hợp nhất}
-\textit{[Trình bày các mô hình đã thử nghiệm, tiêu chí đánh giá (độ chính xác, độ trễ, bộ nhớ) và lý do chọn mô hình cuối cùng.]}
-Từ tập dữ liệu đã đưoc gán nhãn, nhóm tiến hành huấn luyện nhiều mô hình ML khác nhau, bao gồm Decision Tree, Random Forest, SVM và một MLP đơn giản.
-Mỗi mô hình được đánh giá dựa trên các thước đo sau:
+Việc sử dụng \texttt{f.flush()} sau mỗi dòng ghi giúp đảm bảo dữ liệu không bị mất mát trong trường hợp kết nối Serial bị ngắt đột ngột.
+
+\subsubsection{Tiền xử lý và Gán nhãn dữ liệu (Data Preprocessing and Labeling)}
+
+Sau khi thu thập được dữ liệu thô, bước tiếp theo là làm sạch và gán nhãn tự động để tạo ra tập dữ liệu sẵn sàng cho việc huấn luyện mô hình (train-ready). Quá trình này được thực hiện thông qua kịch bản \texttt{extract\_ready\_data.py}.
+
 \begin{itemize}
-    \item Độ chính xác (Accuracy): Trên tập huấn luyện (Train) và tập kiểm thử (Test) để đo lường khả năng dự đoán và kiểm tra hiện tượng quá khớp (overfitting).
-    \item Kích thước mô hình (Artifact Size): Đo bằng Kilobytes (KB).
-    \item Thời gian suy luận (Inference Latency): Đo bằng mili-giây (ms/sample). Quyết định độ trễ của hệ thống khi phản hồi môi trường thực tế.
-\end{itemize}
-\subsubsection*{Mô hình Mạng Nơ\-ron Đa tầng (MLP)}
-
-
-Mô hình Mạng Nơ-ron Đa tầng (MLP) trong hệ thống được thiết kế chuyên biệt để giải quyết bài toán phân loại trạng thái thiết bị nhưng vẫn phải tuân thủ giới hạn tài nguyên khắt khe của vi điều khiển ESP32. 
-Kiến trúc mạng được khởi tạo qua thư viện Keras rất tinh gọn: bao gồm một lớp đầu vào nhận hai đặc trưng môi trường (Nhiệt độ và Độ ẩm), 
-theo sau là hai lớp ẩn (hidden layers) mỏng với chỉ 16 nơ-ron mỗi lớp sử dụng hàm kích hoạt phi tuyến ReLU. 
-Lớp đầu ra sử dụng hàm Softmax để xuất ra xác suất cho từng trạng thái của thiết bị (như bật điều hòa, chờ, hút ẩm...). 
-
-
-Để đảm bảo mô hình MLP có thể học được các mẫu hình (patterns) một cách hiệu quả, 
-toàn bộ dữ liệu đầu vào được yêu cầu phải đi qua bước chuẩn hóa Z-score. 
-Bước tiền xử lý này ép các giá trị nhiệt độ và độ ẩm về cùng một thang đo với trung bình bằng 0 và độ lệch chuẩn bằng 1, giúp thuật toán tối ưu hóa Adam (với learning rate là 1e-3) hội tụ nhanh và ổn định hơn.
-Trong pha huấn luyện, mô hình sử dụng hàm mất mát sparse\_categorical\_crossentropy cho nhãn phân loại dạng số nguyên. 
-Bên cạnh đó, hệ thống cũng áp dụng chiến lược kiểm định chéo (validation split) bằng cách trích ra 20\% dữ liệu từ tập huấn luyện để theo dõi 
-sát sao độ chính xác qua từng chu kỳ học (epoch), giúp phát hiện sớm và phòng tránh hiện tượng học vẹt (overfitting).
-
-
-Thay vì triển khai mô hình gốc dưới định dạng số thực 32\-bit (Float32) vốn đòi hỏi nhiều dung lượng và năng lực tính toán dấu phẩy động, 
-hệ thống sử dụng TFLiteConverter để thực hiện lượng tử hóa toàn phần về số nguyên 8-bit (Full Integer INT8 Quantization). 
-Để thực hiện điều này mà không làm suy giảm nghiêm trọng độ chính xác, một tập dữ liệu đại diện (representative\_dataset) 
-đã được đưa vào để bộ chuyển đổi đo lường và hiệu chỉnh dải giá trị động (dynamic range) của các nơ-ron. 
-Kết quả là mô hình cuối cùng (\_mlp\_int8.tflite) có kích thước giảm đi khoảng 4 lần, 
-thời gian suy luận (latency) giảm đáng kể và đặc biệt phù hợp để nhúng trực tiếp vào bộ nhớ Flash giới hạn của vi điều khiển ESP32.
-
-\subsubsection*{Mô hình Random Forest}
-Mô hình Rừng ngẫu nhiên (Random Forest) hoạt động dựa trên triết lý học kết hợp (Ensemble Learning), cụ thể là kỹ thuật Bagging. 
-Thay vì phụ thuộc vào một cây quyết định (Decision Tree) duy nhất vốn dễ bị nhiễu, thuật toán xây dựng một "khu rừng" gồm nhiều cây quyết định hoạt động độc lập. Trong cấu hình của hệ thống đề xuất, tham số n\_estimators=200 được thiết lập, đồng nghĩa với việc có 200 cây quyết định được tạo ra trong pha huấn luyện. 
-Mỗi cây sẽ tự động học các quy tắc phân chia không gian dữ liệu dựa trên một tập con ngẫu nhiên của hai đặc trưng đầu vào (Nhiệt độ và Độ ẩm), giúp mô hình triệt tiêu sự phụ thuộc vào các điểm dữ liệu dị biệt và giảm thiểu tối đa hiện tượng quá khớp (overfitting).
-
-
-Khi tiến hành dự đoán trạng thái của thiết bị cho một mẫu dữ liệu mới, Random Forest áp dụng cơ chế "bầu chọn số đông" (majority voting). Toàn bộ 200 cây trong khu rừng sẽ xử lý mẫu dữ liệu đầu vào và đưa ra kết quả phân loại riêng của mình (ví dụ: cây A dự đoán "Bật điều hòa", cây B dự đoán "Chế độ chờ"). Kết quả có số lượt bình chọn cao nhất sẽ được chọn làm nhãn đầu ra cuối cùng của cả hệ thống. Mặc dù cơ chế này mang lại độ chính xác cực kỳ cao và tính ổn định tốt cho dữ liệu cảm biến, nhưng điểm yếu cốt tử của Random Forest khi triển khai lên ESP32 là kích thước mô hình (artifact size). Việc phải lưu trữ toàn bộ cấu trúc rẽ nhánh của hàng trăm cây quyết định khiến nó tiêu tốn lượng lớn bộ nhớ Flash, biến đây trở thành một sự đánh đổi lớn giữa độ chính xác và tài nguyên phần cứng.
-
-
-Sau khi đánh giá các mô hình, nhóm quyết định sẽ sử dụng mô hình Navie Byess để nhúng xuống ESP32.
-
-\subsubsection*{Mô hình Support Vector Machine (SVM)}
-Mô hình Support Vector Machine (SVM) trong hệ thống hoạt động dựa trên nguyên 
-lý tìm kiếm các siêu mặt phẳng (hyperplanes) tối ưu để phân tách các lớp trạng 
-thái của thiết bị. Vì dữ liệu cảm biến (Nhiệt độ và Độ ẩm) trong thực tế thường 
-đan xen phức tạp và hiếm khi phân tách tuyến tính, đoạn mã đã thiết lập mô hình 
-sử dụng hàm cơ sở xuyên tâm (kernel=\"rbf\"). Kỹ thuật này \- thường được gọi là 
-\"Kernel trick\" \- cho phép thuật toán tính toán ẩn và ánh xạ dữ liệu đầu vào 2 
-chiều lên một không gian đa chiều phức tạp hơn, nơi các ranh giới phân loại có 
-thể được thiết lập rõ ràng. Quá trình này được tinh chỉnh bởi siêu tham số C (svm\_c), 
-đóng vai trò như một cơ chế phạt, giúp mô hình cân bằng giữa việc tạo ra một ranh giới 
-tổng quát hóa tốt và việc phải phân loại đúng tuyệt đối mọi điểm dữ liệu trong tập huấn 
-luyện.
-
-Khác với kiến trúc của Mạng nơ\-ron (lưu trữ trọng số tĩnh), SVM thực hiện suy luận bằng cách lưu trữ lại các điểm dữ liệu đóng vai trò làm ranh giới, được gọi là các vector hỗ trợ (support vectors). Đoạn mã đã đặc biệt trích xuất số lượng này thông qua thuộc tính support\_ để làm tiêu chí đánh giá. Đối với môi trường phần cứng hạn chế như ESP32, đặc tính này tạo ra một điểm yếu chí mạng: số lượng vector hỗ trợ tỷ lệ thuận với mức độ phức tạp của dữ liệu. 
-Khi mô hình có quá nhiều vector hỗ trợ, dung lượng file (artifact\_size\_bytes) sẽ phình to chiếm dụng bộ nhớ Flash. 
-Đồng thời, mỗi lần dự đoán một mẫu mới, vi xử lý phải tính toán khoảng cách toán học từ điểm đầu vào đến từng vector hỗ trợ, làm tăng đột biến thời gian suy luận (latency) và tiêu hao năng lượng so với các mô hình tham số khác.
-
-\subsubsection*{Mô hình Xác suất Naive Bayes}
-Mô hình Xác suất Naive Bayes được triển khai trong hệ thống thông qua lớp thuật toán GaussianNB. Nguyên lý cốt lõi của thuật toán này dựa trên Định lý Bayes kết hợp với giả định "ngây thơ" (naive) rằng các đặc trưng đầu vào – cụ thể là Nhiệt độ và Độ ẩm – là hoàn toàn độc lập với nhau khi xét trên một trạng thái cụ thể của thiết bị. Vì sử dụng biến thể Gaussian, 
-thuật toán ngầm giả định rằng dữ liệu của mỗi lớp tuân theo phân phối chuẩn 
-(Normal Distribution). Đặc tính này giải thích vì sao việc hệ thống áp dụng kỹ 
-thuật chuẩn hóa Z-score ở bước tiền xử lý là cực kỳ quan trọng; nó không chỉ đưa 
-dữ liệu về cùng thang đo mà còn tạo điều kiện thống kê lý tưởng để GaussianNB tính 
-toán và cập nhật chính xác các tham số phân phối (kỳ vọng và phương sai) cho từng 
-phân lớp.
-
-Xét trên khía cạnh triển khai hệ thống nhúng (TinyML), Naive Bayes thường được sử dụng làm mô hình cơ sở (baseline) mang tính tham chiếu nhờ sự tối ưu tuyệt đối về mặt tài nguyên. 
-Thay vì phải lưu trữ ma trận trọng số phức tạp như Mạng nơ-ron (MLP) hay cấu 
-trúc rẽ nhánh cồng kềnh như Rừng ngẫu nhiên (Random Forest), GaussianNB chỉ cần lưu 
-trữ các giá trị thống kê cơ bản (mean và variance) của các đặc trưng. Điều này giúp kích thước file lưu trữ (artifact size) của mô hình trở nên cực kỳ nhỏ gọn, đồng thời thuật toán tính toán xác suất tiên nghiệm cũng giúp thời gian suy luận (latency) trên vi điều khiển ESP32 gần như tức thời. Tuy nhiên, sự đánh đổi cốt lõi nằm ở chỗ: nếu các yếu tố môi trường (Nhiệt độ và Độ ẩm) thực tế có sự tương quan tuyến tính mạnh, giả định "độc lập" của thuật toán sẽ trở thành rào cản, khiến mô hình khó có thể đạt được độ chính xác (Accuracy) cao như các thuật toán phi tuyến khác.
-\newpage
-
-\subsubsection{Kiểm thử lại mô hình và nhúng xuống firmware}
-Trước khi nhúng mô hình đã chọn xuống firmware, nhóm tiến hành kiểm thử lại trên tập dữ liệu test để đảm bảo độ chính xác và hiệu suất của mô hình. 
-Ngoài nhóm còn chạy script python trong file test\_navie\_bayes.py để đưa vào các mẫu dữ liệu mới để kiểm tra độ chính xác của mô hình trên các dữ liệu chưa từng thấy trước đó.
-
-\section{Quá trình trích xuất tham số (C Header Export)}
-
-Sau khi mô hình được huấn luyện thành công trên môi trường Python, các tham số đặc trưng được trích xuất và chuyển đổi sang tệp tiêu đề C (\texttt{.h}) để triển khai trực tiếp trên vi điều khiển ESP32. Việc lưu trữ tham số dưới dạng các mảng \texttt{static const} giúp tối ưu hóa bộ nhớ bằng cách đẩy dữ liệu vào vùng Flash (vùng nhớ chỉ đọc), giảm tải cho bộ nhớ RAM (SRAM) vốn hạn chế của hệ thống nhúng.
-
-Các tham số chính được xuất bao gồm:
-\begin{itemize}
-    \item \texttt{kNbFeatureMean}, \texttt{kNbFeatureStd}: Các hệ số trung bình và độ lệch chuẩn của toàn bộ tập dữ liệu, phục vụ cho quá trình chuẩn hóa Z-score tại thời gian chạy.
-    \item \texttt{kNbClassPrior}: Xác suất tiên nghiệm $P(Y=c)$ của từng lớp hành động.
-    \item \texttt{kNbTheta}: Ma trận kì vọng ($\mu_{c,j}$) của từng đặc trưng $j$ trong từng lớp $c$.
-    \item \texttt{kNbVariance}: Ma trận phương sai ($\sigma^2_{c,j}$) tương ứng của từng đặc trưng trong từng lớp.
+    \item \textbf{Mục tiêu:} Chuyển đổi tệp \texttt{raw\_data.csv} thành \texttt{train\_ready.csv} bằng cách áp dụng các quy tắc logic nghiệp vụ để xác định trạng thái của hệ thống dựa trên thông số môi trường.
+    \item \textbf{Quy tắc gán nhãn (Heuristic Labeling):} Hệ thống sử dụng hàm \texttt{classify\_label} để phân loại dữ liệu vào các nhãn mục tiêu:
+    \begin{itemize}
+        \item \textbf{Bật máy sưởi:} Khi nhiệt độ thấp hơn 24.0°C.
+        \item \textbf{Bật điều hòa:} Khi nhiệt độ lớn hơn 33.0°C và độ ẩm nằm trong khoảng 50\% - 80\%.
+        \item \textbf{Bật máy hút ẩm:} Khi nhiệt độ lớn hơn 33.0°C và độ ẩm vượt quá 80\%.
+        \item \textbf{Không hợp lệ:} Dữ liệu nằm ngoài dải vật lý (0 - 100) hoặc thiếu giá trị.
+        \item \textbf{Chế độ bình thường:} Các trường hợp còn lại trong dải đo cho phép.
+    \end{itemize}
+    
 \end{itemize}
 
-\section{Thuật toán Suy diễn trên ESP32 (Inference Logic)}
 
-Quá trình suy diễn trên ESP32 được thiết kế để tối ưu hóa hiệu suất tính toán và tránh lỗi tràn số thực (\textit{underflow}) bằng cách thực hiện tính toán trong không gian logarit thay vì không gian xác suất trực tiếp. Quy trình gồm 3 bước chính:
 
-\subsection{Bước 1: Chuẩn hóa dữ liệu đầu vào}
-Giá trị đọc được từ cảm biến ($x$) được chuẩn hóa về phân phối chuẩn hóa dựa trên các tham số đã được học:
-\begin{equation}
-    x_{norm}[j] = \frac{x[j] - \mu_{global}[j]}{\sigma_{global}[j]}
-\end{equation}
+Kết quả của giai đoạn này là một tệp CSV gồm ba cột chính: \texttt{temperature}, \texttt{humidity}, và \texttt{label}, phục vụ trực tiếp cho các thuật toán học máy ở bước sau.
 
-\subsection{Bước 2: Tính toán điểm số Log-likelihood}
-Với mỗi lớp $c$, thuật toán tính toán điểm số (Score) dựa trên phân phối Gaussian. Công thức rút gọn của hàm Log-likelihood được thực thi như sau:
-\begin{equation}
-    Score[c] = \ln(P(c)) - \frac{1}{2}\sum_{j=1}^{N} \ln(2\pi \sigma^2_{c,j}) - \frac{1}{2}\sum_{j=1}^{N} \frac{(x_{norm}[j] - \theta_{c,j})^2}{\sigma^2_{c,j}}
-\end{equation}
-Trong đó $P(c)$ là xác suất tiên nghiệm, $\theta_{c,j}$ là giá trị kì vọng và $\sigma^2_{c,j}$ là phương sai của đặc trưng $j$ thuộc lớp $c$.
+\subsection{Đánh giá và So sánh Mô hình (Model Benchmarking)}
 
-\subsection{Bước 3: Lựa chọn nhãn dự đoán}
-Nhãn dự đoán cuối cùng được xác định bởi chỉ số có điểm số cao nhất (\textit{argmax}):
-\begin{equation}
-    \hat{y} = \arg\max_{c} Score[c]
-\end{equation}
+Để tìm ra kiến trúc học máy phù hợp nhất cho phần cứng hạn chế tài nguyên, hệ thống tiến hành đánh giá toàn diện nhiều thuật toán khác nhau thông qua kịch bản \texttt{evaluate\_models\_comprehensive.py}. Quá trình này không chỉ xét đến độ chính xác mà còn đặc biệt chú trọng vào tài nguyên hệ thống.
 
-\section{Xác thực mô hình trên PC (test\_naive\_bayes.py)}
+\begin{itemize}
+    \item \textbf{Các mô hình thử nghiệm:} Kịch bản tiến hành huấn luyện và đối chiếu bốn mô hình đại diện:
+    \begin{enumerate}
+        \item Gaussian Naive Bayes (GaussianNB).
+        \item Random Forest.
+        \item Support Vector Machine (SVM) với nhân RBF.
+        \item Multi-Layer Perceptron (MLP) - Kích thước được ước lượng bằng cách lượng tử hóa trọng số về INT8 theo chuẩn TensorFlow Lite.
+    \end{enumerate}
+    \item \textbf{Chỉ số đánh giá ML tiêu chuẩn:} Các mô hình được đo lường hiệu suất thông qua Độ chính xác (Accuracy), Precision, Recall, F1-Score (trung bình có trọng số) và diện tích dưới đường cong ROC (ROC-AUC). Hệ thống cũng sử dụng K-Fold Cross-validation (với $K=5$) để đánh giá tính ổn định của mô hình.
+    \item \textbf{Chỉ số phần cứng (ESP32 Score):} Điểm đột phá của luồng công việc này là việc định nghĩa một công thức tính điểm (thang 100) dành riêng cho TinyML, bao gồm ba trọng số chính:
+    \begin{itemize}
+        \item \textbf{Độ chính xác (40\%):} Ưu tiên khả năng nhận diện đúng trạng thái.
+        \item \textbf{Kích thước mô hình (30\%):} Dung lượng tính bằng KB. Mô hình $<100$KB được coi là lý tưởng; mô hình $>1000$KB bị trừ điểm mạnh do giới hạn bộ nhớ Flash/RAM của vi điều khiển.
+        \item \textbf{Tốc độ suy luận (30\%):} Đánh giá thời gian dự đoán (ms) để đảm bảo đáp ứng thời gian thực.
+    \end{itemize}
+\end{itemize}
 
-Để đảm bảo tính nhất quán toán học giữa mô hình huấn luyện và mã thực thi trên nhúng, một kịch bản kiểm thử (\texttt{test\_naive\_bayes.py}) được sử dụng. Kịch bản này mô phỏng chính xác logic tính toán của vi điều khiển bằng cách sử dụng các tham số từ tệp JSON thay vì thư viện \texttt{scikit-learn}.
+\subsubsection*{Trực quan hóa và Báo cáo}
+Kết thúc quá trình đánh giá, hệ thống kết xuất một bảng xếp hạng (Ranking) và báo cáo JSON chi tiết. Nếu môi trường hỗ trợ \texttt{matplotlib}, các biểu đồ so sánh trực quan (như \textit{Model Size Comparison} và \textit{ESP32 Score}) sẽ tự động được tạo ra nhằm hỗ trợ lập trình viên ra quyết định lựa chọn thuật toán triển khai cuối cùng.
 
-Ngoài ra, để cung cấp độ tin cậy trực quan, hàm \textit{Softmax} được áp dụng để chuyển đổi các điểm số \textit{logits} thành xác suất phần trăm:
-\begin{equation}
-    P(y=c|x) = \frac{e^{Score[c]}}{\sum_{k=1}^{K} e^{Score[k]}}
-\end{equation}
-Quá trình này giúp xác nhận độ chính xác của logic suy diễn trước khi nạp chương trình vào ESP32, đảm bảo hệ thống hoạt động đúng như kỳ vọng trong môi trường thực tế.
+\subsubsection{Huấn luyện và Xuất mã C (Model Training and C Header Export)}
+
+Dựa trên kết quả đánh giá ở giai đoạn trước, thuật toán Gaussian Naive Bayes (GaussianNB) được lựa chọn nhờ sự cân bằng tối ưu giữa độ chính xác và yêu cầu tài nguyên siêu nhỏ. Thay vì sử dụng các framework biên dịch nặng nề như TensorFlow Lite (TFLite) cho vi điều khiển, hệ thống thực thi một phương pháp triển khai trực tiếp thông qua kịch bản \texttt{export\_naive\_bayes.py}.
+
+\begin{itemize}
+    \item \textbf{Triết lý triển khai (White-box TinyML):} GaussianNB không phải là một mạng nơ-ron tiêu chuẩn, do đó việc xuất sang định dạng TFLite không phải là giải pháp phù hợp. Thay vào đó, mô hình được "đóng băng" bằng cách trích xuất các tham số toán học đã học thành các mảng hằng số ngôn ngữ C (C arrays) và tự hiện thực hàm suy luận (score function) trực tiếp trên firmware của ESP32.
+    \item \textbf{Chuẩn hóa Z-score:} Trước khi huấn luyện, dữ liệu đầu vào được chuẩn hóa sử dụng phương pháp Z-score. Các tham số trung bình (\texttt{mean}) và độ lệch chuẩn (\texttt{std}) được lưu lại để hệ thống nhúng có thể tiền xử lý dữ liệu cảm biến thực tế theo đúng tỷ lệ toán học.
+    \item \textbf{Trích xuất ma trận cốt lõi:} Mô hình được huấn luyện bằng thư viện \texttt{scikit-learn}, sau đó trích xuất các thông số phân phối chuẩn bao gồm:
+    \begin{itemize}
+        \item Xác suất tiên nghiệm của từng lớp (\texttt{class\_prior\_}).
+        \item Kỳ vọng (\texttt{theta\_}) và Phương sai (\texttt{var\_}) của từng đặc trưng (Nhiệt độ, Độ ẩm) tương ứng với từng trạng thái hệ thống.
+    \end{itemize}
+\end{itemize}
+
+\subsubsection*{Cấu trúc tệp tiêu đề C (C Header Output)}
+Kết quả của quá trình xuất là tệp \texttt{naive\_bayes\_model.h}, chứa toàn bộ tri thức của AI dưới dạng các mảng bộ nhớ tĩnh tối ưu cho SRAM của ESP32.
+
+\begin{lstlisting}[language=C]
+#ifndef NAIVE_BAYES_MODEL_H
+#define NAIVE_BAYES_MODEL_H
+
+#define NB_NUM_CLASSES 5
+#define NB_NUM_FEATURES 2
+
+static const float kNbFeatureMean[NB_NUM_FEATURES] = {47.44557571f, 50.07275391f};
+static const float kNbFeatureStd[NB_NUM_FEATURES] = {30.14743614f, 28.64877701f};
+// ... (Chi tiet cac mang kNbClassPrior, kNbTheta, kNbVariance) ...
+
+// Runtime formula on ESP32:
+// 1) normalize input: x_norm[j] = (x[j] - kNbFeatureMean[j]) / kNbFeatureStd[j]
+// 2) score[class] = log(prior) - 0.5 * sum(log(2*pi*var)) - 0.5 * sum((x_norm-theta)^2 / var)
+// 3) choose argmax(score)
+#endif
+\end{lstlisting}
+
+Điểm nhấn kỹ thuật nằm ở phần chú thích cuối tệp. Nó cung cấp chính xác công thức toán học tính toán hàm Log-Likelihood, giúp lập trình viên nhúng dễ dàng dịch ngược (reverse-engineer) thuật toán ML thành mã C/C++ thuần túy mà không cần phải gọi đến bất kỳ thư viện hỗ trợ học máy nào bên ngoài.
+
+
+\subsubsection{Kiểm thử mô hình cục bộ (Local Model Testing)}
+
+Bước cuối cùng trước khi triển khai firmware lên phần cứng thực tế là kiểm chứng lại logic suy luận. Việc gỡ lỗi (debug) số học trực tiếp trên vi điều khiển thường tốn thời gian và khó khăn, do đó, kịch bản \texttt{test\_naive\_bayes.py} được thiết kế để giả lập lại chính xác môi trường tính toán của ESP32 ngay trên máy tính cá nhân.
+
+\begin{itemize}
+    \item \textbf{Đồng bộ tham số (Parameter Synchronization):} Kịch bản không tải lại mô hình từ thư viện \texttt{scikit-learn}. Thay vào đó, nó đọc trực tiếp tệp \texttt{naive\_bayes\_model\_metrics.json} (được sinh ra ở phần trước) chứa các ma trận như \texttt{zscore\_mean}, \texttt{zscore\_std}, \texttt{theta}, và \texttt{variance}. Điều này đảm bảo Python và C++ sử dụng chung một "bộ não" tham số.
+    \item \textbf{Tái tạo logic toán học:} Kịch bản thực hiện lại các bước tính toán giống hệt mã C sẽ chạy trên ESP32: chuẩn hóa Z-score đầu vào và tính Log-Likelihood dựa trên phân phối chuẩn Gaussian.
+    \item \textbf{Đánh giá độ tin cậy (Confidence Scoring):} Trong khi vi điều khiển có thể chỉ cần hàm \texttt{argmax()} để tìm nhãn có điểm cao nhất nhằm tiết kiệm chu kỳ CPU, kịch bản PC bổ sung thêm hàm \texttt{softmax} để chuyển đổi các giá trị log-likelihood thô thành xác suất phần trăm (\%). Điều này giúp lập trình viên đánh giá độ "tự tin" của mô hình đối với từng dự đoán.
+    \item \textbf{Giao diện tương tác (Interactive CLI):} Chương trình cung cấp giao diện dòng lệnh cho phép người dùng nhập tay các giá trị Nhiệt độ và Độ ẩm bất kỳ, sau đó in ra dự đoán tốt nhất (Top 1) kèm theo danh sách xếp hạng các khả năng khác (Top K).
+\end{itemize}
+
+\subsubsection*{Mã nguồn cốt lõi: Tính toán Log-Likelihood}
+Đoạn mã sau mô phỏng cách tính toán xác suất tiên nghiệm và hàm mật độ phân phối mà không dùng đến thư viện ML:
+
+\begin{lstlisting}[language=Python]
+# Chuan hoa Z-score
+x_norm = (x - mean) / np.where(std < 1e-6, 1.0, std)
+
+# Tinh Gaussian Naive Bayes log likelihood
+var = variance + epsilon
+log_prior = np.log(np.clip(class_prior, 1e-12, None))
+log_det = -0.5 * np.sum(np.log(2.0 * math.pi * var), axis=1)
+quad = -0.5 * np.sum(((x_norm - theta) ** 2) / var, axis=1)
+
+# Tong hop diem
+logits = log_prior + log_det + quad
+probs = softmax(logits) # Chuyen ve xac suat %
+\end{lstlisting}
+
+Nhờ cơ chế kiểm thử đối chứng này, lập trình viên có thể hoàn toàn tự tin biên dịch mã nguồn \texttt{C/C++} cho ESP32, đảm bảo rằng vi điều khiển sẽ đưa ra các quyết định phần cứng (như bật/tắt rơ-le điều hòa) chính xác như những gì thuật toán đã dự đoán trên máy tính.
+
+
+\subsubsection{Triển khai Firmware trên Vi điều khiển (On-device Deployment)}
+
+Sau khi mô hình được xuất sang mảng C và kiểm chứng logic thành công, bước cuối cùng là tích hợp "bộ não" này vào hệ điều hành thời gian thực (FreeRTOS) trên ESP32. Tệp mã nguồn \texttt{tinyml.cpp} đảm nhiệm vai trò là cầu nối giữa dữ liệu cảm biến thời gian thực và thuật toán Naive Bayes.
+
+\begin{itemize}
+    \item \textbf{Kiến trúc đa tác vụ (Multitasking với FreeRTOS):} Thay vì chạy tuần tự trong vòng lặp \texttt{loop()} chặn (blocking) các tiến trình khác, hệ thống gói gọn quá trình suy luận vào một tác vụ độc lập mang tên \texttt{tiny\_ml\_task}.
+    \begin{itemize}
+        \item Tác vụ này sử dụng cơ chế \textbf{Semaphore} (\texttt{xBinarySemaphoreTinyMLData}) để đồng bộ hóa. Nó sẽ ở trạng thái "ngủ" (Blocked) và không tiêu tốn chu kỳ CPU cho đến khi tác vụ đọc cảm biến (\texttt{temp\_humi\_monitor}) báo hiệu có dữ liệu mới.
+    \end{itemize}
+    \item \textbf{Động cơ suy luận (Inference Engine):} Hàm \texttt{runNaiveBayes} hiện thực hóa lại chính xác các phương trình toán học đã đề cập ở Phần 4 và Phần 5 bằng thư viện \texttt{<math.h>} của ngôn ngữ C:
+    \begin{enumerate}
+        \item \textbf{Chuẩn hóa:} Dữ liệu từ cảm biến thực (\texttt{glob\_temperature}, \texttt{glob\_humidity}) được chuẩn hóa Z-score qua hàm \texttt{normalizeInput} sử dụng hằng số \texttt{kNbFeatureMean} và \texttt{kNbFeatureStd}.
+        \item \textbf{Tính toán Log-Likelihood:} Sử dụng vòng lặp để cộng dồn xác suất theo công thức phân phối Gaussian.
+        \item \textbf{Hàm Softmax \& Argmax:} Tính toán xác suất (\%) cho từng lớp (\texttt{class\_probs}) và chọn ra nhãn có xác suất cao nhất (\texttt{argmax}) làm kết quả dự đoán.
+    \end{enumerate}
+    \item \textbf{Cơ chế đánh giá On-device (On-the-fly Evaluation):} Một điểm sáng trong thiết kế phần mềm này là khối lệnh \texttt{tryUpdateGroundTruthFromSerial}. Nó biến ESP32 thành một công cụ tự đánh giá ngoài hiện trường. Thông qua cổng Serial, lập trình viên có thể gõ các lệnh như \texttt{gt 1} (gán nhãn đối chứng thực tế là 1) để ESP32 tự động đối chiếu dự đoán của nó với thực tế, từ đó thống kê số lượng dự đoán đúng/tổng số (\texttt{eval\_correct} / \texttt{eval\_total}).
+\end{itemize}
+
+\subsubsection*{Mã nguồn cốt lõi: Vòng lặp suy luận thời gian thực}
+
+Đoạn lệnh dưới đây minh họa cách mô hình ML hoạt động trơn tru trong môi trường RTOS mà không làm gián đoạn các luồng nghiệp vụ khác của hệ thống nhúng:
+
+\begin{lstlisting}[language=C]
+void tiny_ml_task(void *pvParameters) {
+    setupTinyML();
+    while (1) {
+        // Kiem tra cong Serial de cap nhat nhan doi chung (neu co)
+        tryUpdateGroundTruthFromSerial();
+
+        // Cho doi tin hieu (Semaphore) tu cam bien
+        if (xSemaphoreTake(xBinarySemaphoreTinyMLData, pdMS_TO_TICKS(10000)) != pdTRUE) {
+            continue;
+        }
+
+        // Chay suy luan AI
+        runNaiveBayes(glob_temperature, glob_humidity);
+        const int predicted_label = argmax(class_probs, NB_NUM_CLASSES);
+
+        // Cap nhat bien toan cuc va in ket qua
+        tinyml_predicted_label = predicted_label;
+        Serial.print("T="); Serial.print(glob_temperature, 2);
+        Serial.print(" H="); Serial.print(glob_humidity, 2);
+        Serial.print(" | Label="); Serial.println(kNbLabels[predicted_label]);
+
+        // Thong ke do chinh xac tai cho (neu bat Ground Truth)
+        if (has_ground_truth) {
+            ++eval_total;
+            if (predicted_label == ground_truth_label) ++eval_correct;
+        }
+
+        vTaskDelay(kInferencePeriodTicks); // Chu ky suy luan (5 giay)
+    }
+}
+\end{lstlisting}
+
+Triết lý "White-box TinyML" đã được thể hiện trọn vẹn: Toàn bộ quá trình từ thu thập, huấn luyện, xuất thông số cho đến tính toán trên vi điều khiển hoàn toàn minh bạch, không phụ thuộc vào hộp đen (black-box API) nào, tối ưu hóa đến từng byte RAM và chu kỳ xung nhịp của vi xử lý.
