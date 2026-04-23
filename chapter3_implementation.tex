@@ -6,11 +6,101 @@
 \subsection{Task 1: Temperature-Driven LED Blinking}
 \textit{[Describe the control logic, conditions, and semaphore usage.]}
 
+
+\subsubsection{ Nguyên lý hoạt động}
+Tác vụ "Temperature-Driven LED Blinking" được thiết kế nhằm điều khiển trạng thái chớp tắt của đèn cảnh báo LED1 thông qua dữ liệu nhiệt độ môi trường hoặc sự can thiệp trực tiếp từ người dùng. Hệ thống hoạt động dựa trên cơ chế chuyển đổi linh hoạt giữa hai trạng thái chính: \textit{Auto Mode} (Chế độ tự động) và \textit{Manual Mode} (Chế độ thủ công).
+
+\begin{itemize}
+    \item \textbf{Manual Mode (Chế độ thủ công):} Khi cờ \texttt{led\_auto\_mode} được đặt thành \texttt{false}, hệ thống sẽ bỏ qua các dữ liệu từ cảm biến. Trạng thái của LED1 lúc này được quyết định hoàn toàn bởi biến \texttt{led\_manual\_1}, cho phép phản hồi tức thời với các tín hiệu điều khiển từ xa qua Web Server hoặc nền tảng CoreIoT.
+    \item \textbf{Auto Mode (Chế độ tự động):} Khi \texttt{led\_auto\_mode} là \texttt{true}, tác vụ sẽ chờ tín hiệu đồng bộ (Semaphore) từ quá trình đọc cảm biến. Tần số chớp tắt của LED được chia thành 3 dải nhiệt ($T$) như sau:
+    \begin{itemize}
+        \item $T \le 20^\circ\text{C}$: Môi trường lạnh, chu kỳ nhấp nháy là 500ms.
+        \item $21^\circ\text{C} \le T \le 30^\circ\text{C}$: Môi trường ổn định, chu kỳ nhấp nháy chậm ở mức 1000ms.
+        \item $T > 30^\circ\text{C}$: Cảnh báo nhiệt độ cao, chu kỳ nhấp nháy nhanh ở mức 250ms để thu hút sự chú ý.
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Cơ chế đồng bộ bằng FreeRTOS Semaphore}
+Được triển khai dưới dạng một FreeRTOS Task độc lập (\texttt{led\_blinky}), hệ thống tránh được hiện tượng thắt cổ chai (blocking) khi xử lý các hàm \texttt{vTaskDelay}. Nhằm đảm bảo tính toàn vẹn dữ liệu (Thread-safe) giữa Task đọc cảm biến và Task điều khiển LED, một Binary Semaphore (\texttt{xBinarySemaphoreTemp\_blinky}) đã được áp dụng. Task LED chỉ lấy giá trị nhiệt độ mới vào biến cục bộ \texttt{local\_temp} khi chiếm được quyền kiểm soát Semaphore, qua đó ngăn chặn tuyệt đối lỗi "Data Race".
+
+\subsubsection{Sơ đồ máy trạng thái (FSM)}
+
+
+
+\begin{figure}[H]
+\centering
+    \includegraphics[width=1\linewidth]{picture/task_1_fsm.png}
+ \caption{Task 1 FSM}
+\end{figure}
+
+
 \subsection{Task 2: Humidity-Driven NeoPixel Control}
 \textit{[Describe color patterns, thresholds, and semaphore-based coordination.]}
 
+
+\subsubsection{ Nguyên lý hoạt động}
+Tác vụ "Humidity and Network-Driven NeoPixel Control" chịu trách nhiệm điều khiển đèn LED RGB (NeoPixel) để phản ánh trực quan tình trạng độ ẩm không khí và trạng thái kết nối mạng của hệ thống. Tương tự như LED1, dải NeoPixel cũng hỗ trợ hai chế độ hoạt động: \textit{Auto Mode} và \textit{Manual Mode}.
+
+\begin{itemize}
+    \item \textbf{Manual Mode (Chế độ thủ công):} Khi \texttt{led\_auto\_mode} bị tắt, màu sắc của NeoPixel được xác định bởi các giá trị \texttt{led\_manual\_r}, \texttt{led\_manual\_g}, \texttt{led\_manual\_b} và được tinh chỉnh độ sáng thông qua biến \texttt{led\_brightness} (tính theo phần trăm). Sau khi cập nhật màu sắc, vòng lặp sẽ tạm nghỉ 150ms.
+    \item \textbf{Auto Mode (Chế độ tự động):} Ở chế độ này, hệ thống sẽ ưu tiên kiểm tra trạng thái kết nối mạng, sau đó mới đánh giá dữ liệu độ ẩm ($H$) từ cảm biến. Các mức hiển thị màu sắc được quy định cụ thể như sau:
+    \begin{itemize}
+        \item \textbf{Mất kết nối Wi-Fi} (\texttt{!isWifiConnected}): Đèn hiển thị màu Tím (Purple) cảnh báo mất mạng độc lập với dữ liệu cảm biến.
+        \item $H \le 60\%$: Độ ẩm lý tưởng, đèn hiển thị màu Xanh lá (Green).
+        \item $60\% < H \le 80\%$: Độ ẩm hơi cao, đèn hiển thị màu Đỏ (Red).
+        \item $H > 80\%$: Độ ẩm bão hòa, đèn hiển thị màu Xanh dương (Blue).
+    \end{itemize}
+    Tác vụ chạy với chu kỳ delay là 300ms để đảm bảo cập nhật trạng thái liên tục mà không tiêu tốn tài nguyên hệ thống.
+\end{itemize}
+
+\subsubsection{Cơ chế đồng bộ bằng FreeRTOS Semaphore}
+Tác vụ \texttt{neo\_blinky} sử dụng hàm \texttt{xSemaphoreTake} để kiểm tra việc có hay không dữ liệu mới từ cảm biến. Khi nhận được Semaphore từ Task đọc cảm biến, biến cục bộ \texttt{local\_hum} sẽ được cập nhật bằng giá trị mới nhất từ biến toàn cục \texttt{glob\_humidity}. Điều này giúp vòng lặp của NeoPixel không bị chặn lại nếu cảm biến chưa đọc xong, duy trì khả năng cảnh báo mất Wi-Fi tức thời. Hệ thống cũng áp dụng kỹ thuật so sánh cờ \texttt{currentColor} và \texttt{newColor} để chỉ gọi hàm \texttt{strip.show()} khi thực sự có sự thay đổi màu sắc,
+
+\subsubsection{Sơ đồ máy trạng thái (FSM)}
+
+\begin{figure}[H]
+\centering
+    \includegraphics[width=1\linewidth]{picture/task_2_fsm.png}
+ \caption{Task 2 FSM}
+\end{figure}
+
+
+
 \subsection{Task 3: Temperature and Humidity Monitoring with LCD Display}
 \textit{[Explain periodic sensor acquisition, data formatting, and real-time LCD update logic.]}
+\subsubsection{ Nguyên lý hoạt động}
+Tác vụ "Temperature and Humidity Monitoring" đóng vai trò là khối thu thập dữ liệu trung tâm (Producer) của toàn bộ hệ thống. Tác vụ này có trách nhiệm giao tiếp với cảm biến DHT20 qua chuẩn I2C để trích xuất nhiệt độ và độ ẩm, hiển thị trực quan lên màn hình LCD 16x2, đồng thời cung cấp dữ liệu đầu vào cho các tác vụ phân tích và cảnh báo khác.
+
+Nguyên lý hoạt động được chia thành các bước kiểm duyệt và xử lý chặt chẽ:
+\begin{itemize}
+    \item \textbf{Kiểm duyệt dữ liệu (Data Validation):} Sau mỗi lần đọc cảm biến, hệ thống sử dụng hàm \texttt{isnan()} để kiểm tra tính hợp lệ của dữ liệu. Nếu xuất hiện lỗi đọc (NaN), hệ thống sẽ in cảnh báo ra Serial, tạm dừng 1000ms và lặp lại quá trình đọc mà không làm thay đổi trạng thái của các biến toàn cục. Điều này giúp bảo vệ hệ thống khỏi các giá trị nhiễu hoặc rác.
+    \item \textbf{Hiển thị có điều kiện (Conditional Display):} Dữ liệu hợp lệ sẽ được so sánh với ngưỡng nhiệt độ \texttt{glob\_temp\_threshold} (có thể được cập nhật động từ nền tảng CoreIoT).
+    \begin{itemize}
+        \item \textbf{Môi trường bình thường ($T \le$ Threshold):} LCD hiển thị trực quan Độ ẩm (H) ở hàng trên và Nhiệt độ (T) ở hàng dưới. Hệ thống duy trì trạng thái này trong chu kỳ 1000ms trước khi cập nhật mẫu mới.
+        \item \textbf{Vượt ngưỡng cảnh báo ($T >$ Threshold):} LCD ngay lập tức chuyển sang chế độ báo động. Hàng dưới chốt cứng thông số nhiệt độ hiện tại kèm mức ngưỡng vi phạm. Hàng trên thực hiện hiệu ứng chớp tắt dòng chữ "\texttt{! WARNING TEMP !}" 5 lần (chu kỳ 500ms sáng / 500ms tắt, tổng thời gian 5000ms) để thu hút tối đa sự chú ý của người dùng mà không làm gián đoạn hệ điều hành (nhờ \texttt{vTaskDelay}).
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Cơ chế điều phối hệ thống bằng Semaphore}
+Khác với Task 1 và Task 2 đóng vai trò là "Consumer", Task giám sát nhiệt ẩm hoạt động như một "Producer". Ngay khi dữ liệu hợp lệ được ghi vào biến toàn cục \texttt{glob\_temperature} và \texttt{glob\_humidity}, tác vụ này lập tức phát tín hiệu đánh thức các phân hệ khác bằng cách giải phóng đồng thời 3 Binary Semaphore:
+\begin{enumerate}
+    \item \texttt{xBinarySemaphoreTemp\_blinky}: Kích hoạt tính toán lại tần số nháy LED1.
+    \item \texttt{xBinarySemaphoreTemp\_neo}: Kích hoạt đánh giá màu sắc dải LED NeoPixel.
+    \item \texttt{xBinarySemaphoreTinyMLData}: Kích hoạt bộ nội suy Machine Learning (Naive Bayes) để dự đoán nhãn trạng thái môi trường.
+\end{enumerate}
+
+
+\subsubsection{Sơ đồ máy trạng thái (FSM)}
+
+
+
+\begin{figure}[H]
+\centering
+    \includegraphics[width=1\linewidth]{picture/task_3_fsm.png}
+ \caption{Task 3 FSM}
+\end{figure}
+
+
 
 \subsection{Task 4: Web Server in Access Point Mode}
 \textit{[Describe AP-mode setup, HTTP endpoint design, and web UI handling on ESP32-S3.]}
@@ -20,6 +110,27 @@
 
 \subsection{Task 6: Data Publishing to CoreIoT Cloud Server}
 \textit{[Describe cloud payload format, publishing workflow, and reliability/retry strategy.]}
+
+\subsubsection{ Nguyên lý hoạt động}
+Tác vụ "CoreIoT" đóng vai trò là cầu nối giao tiếp hai chiều (Bidirectional Communication) giữa biên thiết bị (ESP32) và nền tảng đám mây (Cloud/ThingsBoard) thông qua giao thức MQTT ở port 1883. Tác vụ này thực hiện hai nhiệm vụ cốt lõi: báo cáo dữ liệu định kỳ và lắng nghe, thực thi các lệnh gọi hàm từ xa (RPC - Remote Procedure Call) từ người dùng.
+
+\begin{itemize}
+    \item \textbf{Quản lý kết nối không xung đột:} Để tránh hiện tượng "tranh chấp" module Wi-Fi với Web Server gây treo hệ thống, Task CoreIoT không tự gọi hàm \texttt{WiFi.begin()}. Thay vào đó, nó liên tục giám sát cờ \texttt{isWifiConnected} do \texttt{main\_server\_task} cấp phát. Nếu mất Wi-Fi, tác vụ tự động chuyển sang trạng thái chờ 2000ms; chỉ khi có mạng, quá trình kết nối MQTT (\texttt{reconnect}) mới được phép kích hoạt.
+    \item \textbf{Đồng bộ:} Khi duy trì kết nối MQTT ổn định, cứ mỗi 10.000ms (10 giây), hệ thống sẽ đóng gói các thông số môi trường hiện hành (\texttt{glob\_temperature}, \texttt{glob\_humidity}) và cấu hình ngưỡng cảnh báo (\texttt{glob\_temp\_threshold}) thành chuỗi JSON. Chuỗi này được gửi lên topic \texttt{v1/devices/me/telemetry} để hiển thị lên Dashboard của hệ thống CoreIoT.
+    \item \textbf{Thực thi lệnh điều khiển RPC (RPC Callback):} Hệ thống đăng ký (subscribe) lắng nghe tại topic \texttt{v1/devices/me/rpc/request/+}. Khi có lệnh điều khiển từ Dashboard (VD: kéo Slider thay đổi ngưỡng), hàm \texttt{callback} sẽ được ngắt để gọi. Thư viện \texttt{ArduinoJson} phân tích gói tin, nhận diện phương thức \texttt{"setThre"} và ngay lập tức trích xuất tham số \texttt{params} để cập nhật đè lên biến \texttt{glob\_temp\_threshold}. Nhờ đó, thay đổi từ Cloud lập tức được phản ánh xuống giới hạn cảnh báo của màn hình LCD ở biên thiết bị.
+\end{itemize}
+
+
+\subsubsection{Sơ đồ máy trạng thái (FSM)}
+
+\begin{figure}[H]
+\centering
+    \includegraphics[width=1\linewidth]{picture/task_6_fsm.png}
+ \caption{Task 6 FSM}
+\end{figure}
+
+
+
 
 \subsection{Architecture Overview}
 \textit{[Present the overall system architecture, data flow, and task interactions.]}
