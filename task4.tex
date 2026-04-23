@@ -1,106 +1,62 @@
-\subsubsection{Quản lý trạng thái và cấu hình mạng (Network State Management)}
-Module máy chủ web trên ESP32 được thiết kế để hoạt động linh hoạt giữa hai chế độ mạng: Access Point (AP) để cấu hình thiết bị và Station (STA) để kết nối Internet. Quá trình chuyển đổi và duy trì trạng thái mạng được quản lý chặt chẽ thông qua các cờ trạng thái (state flags) và bộ nhớ không bay hơi.
+\subsubsection{Kiến trúc tổng thể}
 
-Để đảm bảo ESP32 có thể tự động kết nối lại Wi-Fi sau khi mất điện hoặc khởi động lại, hệ thống sử dụng thư viện Preferences.h thay vì EEPROM truyền thống. Thư viện này lưu trữ dữ liệu dưới dạng key-value vào phân vùng NVS của bộ nhớ Flash, giúp việc đọc/ghi an toàn và tránh phân mảnh bộ nhớ.
-\begin{lstlisting}
-bool loadWifiCredentials(String &savedSsid, String &savedPass) {
-  wifiPrefs.begin("wifi\_cfg", true);
-  savedSsid = wifiPrefs.getString("ssid", "");
-  savedPass = wifiPrefs.getString("pass", "");
-  wifiPrefs.end();
-  return savedSsid.length() > 0;
-}
-
-\end{lstlisting}
-
-Tại hàm khởi tạo của main\_server\_task, hệ thống sẽ gọi loadWifiCredentials(). Nếu tìm thấy thông tin cấu hình hợp lệ, hệ thống sẽ tự động chuyển sang trạng thái connecting = true và gọi hàm connectToWiFi().
-
-
-\subsection{Tích hợp Web Server trong FreeRTOS}
-
-Trong hệ thống nhúng dựa trên ESP32, việc vận hành một máy chủ web yêu cầu khả năng xử lý đồng thời các truy vấn HTTP mà không làm gián đoạn các tác vụ thu thập dữ liệu cảm biến hay xử lý AI (TinyML). Để giải quyết vấn đề này, Web Server được thiết kế chạy trên một luồng (task) riêng biệt của hệ điều hành FreeRTOS.
-
-\subsubsection{Cấu trúc đa nhiệm và khởi tạo Task}
-Thay vì đặt logic xử lý trong hàm \texttt{loop()} truyền thống của Arduino, máy chủ web được đóng gói trong hàm \texttt{main\_server\_task}. Việc sử dụng FreeRTOS cho phép chỉ định mức độ ưu tiên (priority) và kích thước bộ nhớ stack phù hợp cho dịch vụ mạng.
-
-\begin{lstlisting}[language=C++, caption={Khởi tạo tác vụ Web Server trong FreeRTOS}]
-void main_server_task(void *pvParameters) {
-
-    startAP();
-    setupServer();
-
-    while (1) {
-
-        server.handleClient();
-
-        if (digitalRead(BOOT_PIN) == LOW) {
-            handleHardwareReset();
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(20));
-    }
-}
-\end{lstlisting}
-
-\subsubsection{Cơ chế đồng bộ hóa bằng Binary Semaphore}
-Hệ thống sử dụng \textit{Binary Semaphore} (\texttt{xBinarySemaphoreInternet}) để quản lý sự phụ thuộc giữa các tầng dịch vụ. Các tác vụ yêu cầu kết nối Internet (như gửi dữ liệu lên Cloud hoặc cập nhật thời gian NTP) sẽ ở trạng thái \textit{Blocked} cho đến khi Web Server xác nhận kết nối Wi-Fi thành công.
+Hệ thống được thiết kế theo mô hình \textbf{Client-Server đa luồng (Multi-tasking)} kết hợp với mô hình \textbf{Single Page Application (SPA)} ở phía giao diện:
 
 \begin{itemize}
-    \item \textbf{Cơ chế kích hoạt:} Khi trạng thái mạng chuyển sang \texttt{WL\_CONNECTED}, hàm \texttt{xSemaphoreGive()} được gọi.
-    \item \textbf{Ý nghĩa:} Kỹ thuật này giúp tiết kiệm tài nguyên CPU, thay vì các task phải liên tục kiểm tra trạng thái Wi-Fi (busy-waiting), chúng chỉ thực thi khi có tín hiệu từ Web Server.
+    \item \textbf{Backend (ESP32):} Đóng vai trò là Web Server (cung cấp các API và giao diện HTML) và Router (quản lý kết nối mạng Wi-Fi ở cả chế độ AP và STA).
+    
+    \item \textbf{Frontend (Trình duyệt Web):} Giao diện được nhúng trực tiếp vào bộ nhớ Flash của vi điều khiển ESP32. Khi trình duyệt tải trang về, hệ thống sử dụng JavaScript (thông qua Fetch API) để liên tục gọi các API của Backend, từ đó cập nhật dữ liệu cảm biến và trạng thái mới nhất mà không cần tải lại trang (chống giật lag và tiết kiệm băng thông).
+    
+    \item \textbf{Hệ điều hành thời gian thực (FreeRTOS):} Toàn bộ hệ thống Web Server được đóng gói và chạy trên một luồng (Task) hoàn toàn riêng biệt có tên là \texttt{main\_server\_task}. Kiến trúc này cho phép các chức năng cốt lõi khác của hệ thống (như đọc cảm biến môi trường, xử lý tín hiệu, hay chạy mô hình AI TinyML) có thể hoạt động song song ở các Task khác mà không bị chặn (blocking) bởi các tiến trình mạng.
 \end{itemize}
 
-\subsubsection{Tối ưu hóa hiệu năng và độ ổn định}
-Để đảm bảo Web Server hoạt động ổn định trong môi trường tài nguyên hạn chế của ESP32, các kỹ thuật sau đã được áp dụng:
+\subsubsection{Quản lý mạng Wi-Fi và NVS (Non-Volatile Storage)}
+
+Hệ thống sử dụng linh hoạt hai chế độ mạng của vi điều khiển ESP32 bao gồm \textbf{AP (Access Point - trạm phát)} và \textbf{STA (Station - thiết bị kết nối)}:
+
+\begin{itemize}
+    \item \textbf{AP Mode:} Chế độ này luôn được kích hoạt mặc định khi hệ thống khởi động (thông qua hàm \texttt{startAP()}). ESP32 tự đóng vai trò là một trạm phát Wi-Fi độc lập, cho phép thiết bị của người dùng kết nối trực tiếp vào để tiến hành cấu hình mạng ban đầu.
+    
+    \item \textbf{STA Mode:} Khi người dùng cung cấp thông tin mạng cục bộ (SSID và Mật khẩu) từ giao diện, thiết bị sẽ chuyển sang chế độ \texttt{WIFI\_AP\_STA} (hoạt động song song cả thu và phát). Nếu kết nối thành công tới router nội bộ, hệ thống sẽ ghi nhận và hiển thị địa chỉ IP được cấp phát.
+    
+    \item \textbf{Lưu trữ Preferences (NVS):} Để đảm bảo tính tự động hóa, hệ thống sử dụng thư viện \texttt{<Preferences.h>} nhằm lưu trữ vĩnh viễn dữ liệu cấu hình mạng vào phân vùng Flash (Non-Volatile Storage). Ở những lần khởi động tiếp theo, vi điều khiển sẽ tự động gọi hàm \texttt{loadWifiCredentials()} để trích xuất thông tin này và tái thiết lập kết nối mà không cần sự can thiệp của người dùng.
+\end{itemize}
+
+\subsubsection{Backend Web Server (API và Routing)}
+
+Hệ thống sử dụng thư viện \texttt{<WebServer.h>} để định nghĩa các Endpoints (đường dẫn API). Cụ thể, trong hàm \texttt{setupServer()}, máy chủ web được cấu hình với 3 nhóm API cốt lõi:
 
 \begin{enumerate}
-    \item \textbf{Non-blocking Request Handling:} Hàm \texttt{server.handleClient()} được gọi lặp lại trong vòng lặp của task. Việc sử dụng \texttt{vTaskDelay(20)} cực kỳ quan trọng để bộ lập lịch (Scheduler) có thể cấp phát thời gian cho tác vụ IDLE, từ đó ngăn chặn lỗi \textit{Task Watchdog Timer (TWDT)} reset vi điều khiển.
-    \item \textbf{Quản lý bộ nhớ Stack:} Do giao diện Web chứa nhiều chuỗi HTML dài (Raw String Literals), kích thước stack của task được tính toán kỹ lưỡng để tránh hiện tượng \textit{Stack Overflow} khi xử lý các chuỗi JSON phức tạp.
-    \item \textbf{Ưu tiên tác vụ (Priority Management):} Tác vụ Web Server thường được thiết lập mức ưu tiên trung bình. Điều này đảm bảo phản hồi HTTP vẫn nhanh nhạy nhưng không chiếm quyền ưu tiên của các tác vụ thời gian thực như đọc dữ liệu từ cảm biến DHT22 hoặc xử lý tín hiệu AI.
+    \item \textbf{Phục vụ giao diện (HTML):} Các đường dẫn \texttt{/}, \texttt{/dashboard}, và \texttt{/settings}. Nhóm này có nhiệm vụ trả về toàn bộ chuỗi HTML (chứa CSS/JS) để hiển thị giao diện Single Page Application trên trình duyệt.
+    
+    \item \textbf{API điều khiển \& cấu hình:} Bao gồm \texttt{/toggle}, \texttt{/led-mode}, \texttt{/led-rgb}, \texttt{/connect}, và \texttt{/scan-networks}. Đây là các endpoint tiếp nhận lệnh từ người dùng để thay đổi trạng thái phần cứng (bật/tắt, đổi màu LED) hoặc tiến hành quét/kết nối mạng Wi-Fi.
+    
+    \item \textbf{API cung cấp dữ liệu (JSON):} Bao gồm \texttt{/sensors}, \texttt{/history}, \texttt{/led-status}, và \texttt{/tinyml-status}. Giao diện web sẽ liên tục gọi các API này để cập nhật số liệu. Đặc biệt, thông qua hàm \texttt{handleTinyMlStatus()}, ta có thể thấy rõ cơ chế giao tiếp liên luồng (inter-task communication) giữa Web Task và AI Task thông qua việc đọc các biến toàn cục (ví dụ: \texttt{tinyml\_predicted\_label}).
 \end{enumerate}
 
+\subsubsection{Giao diện Frontend (HTML, CSS và JavaScript)}
 
-\subsection{Thiết kế RESTful API và Giao tiếp Client-Server}
+Thay vì sử dụng các tệp tin lưu trữ rời rạc, toàn bộ giao diện người dùng được nhúng trực tiếp vào mã nguồn dưới dạng các chuỗi ký tự định dạng \texttt{rawliteral}. Kiến trúc giao diện tập trung vào các đặc điểm sau:
 
-Để đảm bảo Dashboard hoạt động mượt mà và cập nhật dữ liệu thời gian thực mà không cần tải lại toàn bộ trang web, hệ thống áp dụng mô hình RESTful API dựa trên giao thức HTTP.
-
-\subsubsection{Cấu trúc các Endpoint}
-Các yêu cầu từ trình duyệt được phân loại và xử lý thông qua các hàm callback cụ thể được đăng ký trong phương thức \texttt{setupServer()}. Các Endpoint chính bao gồm:
 \begin{itemize}
-    \item \textbf{Dữ liệu cảm biến:} \texttt{GET /sensors} trả về nhiệt độ và độ ẩm hiện tại dưới định dạng JSON.
-    \item \textbf{Lịch sử dữ liệu:} \texttt{GET /history} cung cấp mảng 10 mẫu dữ liệu gần nhất để vẽ biểu đồ.
-    \item \textbf{Điều khiển thiết bị:} \texttt{GET /toggle}, \texttt{GET /led-rgb} và \texttt{GET /led-brightness} tiếp nhận các tham số để điều chỉnh trạng thái phần cứng.
-    \item \textbf{Giám sát AI:} \texttt{GET /tinyml-status} cung cấp kết quả dự đoán từ mô hình học máy.
+    \item \textbf{Single Page Application (SPA):} Dashboard được thiết kế để hoạt động trên một trang duy nhất. Sử dụng thư viện \texttt{Chart.js} để trực quan hóa dữ liệu cảm biến. Giao diện có khả năng phản hồi (Responsive) tốt trên cả thiết bị di động và máy tính.
+    
+    \item \textbf{Cơ chế Fallback Canvas:} Đây là một điểm sáng trong thiết kế hệ thống. Trong điều kiện thiết bị không có kết nối Internet (không thể tải thư viện từ CDN), mã nguồn JavaScript sẽ tự động kích hoạt hàm \texttt{drawFallbackChart()} sử dụng \texttt{Canvas API} thuần để vẽ biểu đồ. Điều này đảm bảo tính sẵn sàng cao của hệ thống trong mọi môi trường mạng.
+    
+    \item \textbf{Cập nhật dữ liệu thời gian thực:} Sử dụng hàm \texttt{setInterval()} để tự động thực hiện các truy vấn \texttt{fetch()} tới các endpoint JSON (\texttt{/history}, \texttt{/led-status}, \texttt{/tinyml-status}) định kỳ từ 3 đến 5 giây, giúp cập nhật trạng thái thiết bị và dự đoán từ mô hình TinyML mà không làm gián đoạn trải nghiệm người dùng.
 \end{itemize}
 
-\subsubsection{Xử lý dữ liệu định dạng JSON}
-Thay vì sử dụng các thư viện bên thứ ba có thể gây tốn tài nguyên RAM, hệ thống thực hiện xây dựng chuỗi JSON thủ công bằng đối tượng \texttt{String} để tối ưu hóa tốc độ phản hồi. Các chuỗi ký tự đặc biệt được xử lý qua hàm \texttt{escapeJsonString()} nhằm đảm bảo tính hợp lệ của gói tin khi truyền tải các nội dung có dấu hoặc ký tự điều khiển.
+\subsubsection{Quản lý tác vụ và Luồng xử lý (Task Management)}
 
-\subsection{Xử lý và Hiển thị kết quả TinyML}
+Tiến trình cốt lõi của máy chủ được thực thi bên trong hàm \texttt{main\_server\_task}, vận hành dựa trên các nguyên tắc của hệ điều hành thời gian thực FreeRTOS:
 
-Tính năng nổi bật của hệ thống là khả năng giám sát các đề xuất từ mô hình TinyML chạy trực tiếp tại biên (Edge AI). 
-
-\subsubsection{Giải mã nhãn dự đoán (Label Mapping)}
-Kết quả từ mô hình TinyML là các chỉ số số nguyên (nhãn). Tại server, các nhãn này được chuyển đổi sang ngôn ngữ tự nhiên thông qua hàm \texttt{tinyMlLabelText()} và \texttt{tinyMlSuggestionText()} để người dùng dễ dàng theo dõi. 
 \begin{itemize}
-    \item \textbf{Nhãn 1-3:} Tương ứng với các trạng thái cần tác động như bật điều hòa, máy hút ẩm hoặc máy sưởi.
-    \item \textbf{Nhãn 4:} Trạng thái bình thường.
-    \item \textbf{Nhãn 0:} Cảnh báo dữ liệu bất thường hoặc cảm biến lỗi.
+    \item \textbf{Vòng lặp điều phối (Main Loop):} Task duy trì một vòng lặp vô hạn để xử lý đồng thời các yêu cầu phân giải tên miền (\texttt{dnsServer.processNextRequest()}) và các yêu cầu từ máy khách HTTP (\texttt{server.handleClient()}).
+    
+    \begin{itemize}
+        \item \textbf{Cơ chế Non-blocking:} Logic kết nối Wi-Fi được thiết kế không chặn (non-blocking) bằng cách sử dụng hàm \texttt{millis()} để kiểm soát thời gian chờ (timeout 10 giây), giúp Web Server vẫn có thể đáp ứng các yêu cầu khác trong khi đang đợi thiết lập kết nối mạng.
+        \item \textbf{Tương tác phím cứng:} Hệ thống liên tục giám sát trạng thái của \texttt{BOOT\_PIN}. Khi người dùng nhấn giữ nút này, thiết bị sẽ cưỡng bức chuyển về chế độ AP, giúp người dùng luôn có khả năng truy cập vào trang cấu hình kể cả khi mạng cục bộ gặp sự cố.
+    \end{itemize}
+
+    \item \textbf{Giao tiếp liên luồng (Inter-task Communication):} Sau khi kết nối Wi-Fi thành công, hệ thống sử dụng cơ chế Semaphore (\texttt{xSemaphoreGive}) để gửi tín hiệu cho các Task khác biết rằng kết nối Internet đã sẵn sàng, cho phép kích hoạt các tính năng nâng cao như đồng bộ hóa dữ liệu lên Cloud.
 \end{itemize}
-
-\subsubsection{Cơ chế xác định độ tươi của dữ liệu (Data Staleness)}
-Hệ thống tính toán biến \texttt{age\_ms} dựa trên hiệu số giữa thời gian hiện tại (\texttt{millis()}) và thời điểm cập nhật dự đoán cuối cùng (\texttt{tinyml\_last\_update\_ms}). Nếu giá trị này vượt quá ngưỡng 10 giây, giao diện người dùng sẽ tự động chuyển trạng thái sang "Mất tín hiệu" (\texttt{stale}), giúp đảm bảo tính tin cậy của thông tin hiển thị.
-
-\subsection{Lưu trữ Web UI và Cơ chế Vẽ biểu đồ Dự phòng}
-
-\subsubsection{Lưu trữ giao diện bằng Raw String Literals}
-Toàn bộ mã nguồn giao diện (HTML, CSS và JavaScript) được lưu trữ trực tiếp trong bộ nhớ Flash của ESP32 dưới dạng các chuỗi hằng số sử dụng kỹ thuật \textit{Raw String Literals} (\texttt{R"rawliteral(...)rawliteral"}). Cách tiếp cận này giúp đơn giản hóa việc quản lý mã nguồn giao diện mà không cần sử dụng hệ thống tệp tin phức tạp như SPIFFS hay LittleFS.
-
-\subsubsection{Giải pháp vẽ biểu đồ dự phòng (Fallback Canvas)}
-Trong kịch bản thiết bị hoạt động ở chế độ Access Point (AP) không có kết nối Internet, trình duyệt sẽ không thể tải thư viện \texttt{Chart.js} từ CDN. Để giải quyết vấn đề này, hệ thống hiện thực một cơ chế dự phòng thông minh trong JavaScript:
-\begin{enumerate}
-    \item Kiểm tra sự tồn tại của đối tượng \texttt{window.Chart}.
-    \item Nếu không có Internet, hàm \texttt{drawFallbackChart()} sẽ được kích hoạt để vẽ biểu đồ trực tiếp lên HTML5 Canvas API bằng các thuật toán đồ họa cơ bản.
-    \item Cơ chế này đảm bảo người dùng luôn quan sát được trực quan xu hướng biến đổi của nhiệt độ và độ ẩm trong mọi điều kiện kết nối.
-\end{enumerate}
-
