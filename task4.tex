@@ -1,146 +1,106 @@
-\newpage
-% --- BẮT ĐẦU BÁO CÁO NHIỆM VỤ 4 (ĐÃ GIẢM 1 CẤP ĐỀ MỤC) ---
+\subsubsection{Quản lý trạng thái và cấu hình mạng (Network State Management)}
+Module máy chủ web trên ESP32 được thiết kế để hoạt động linh hoạt giữa hai chế độ mạng: Access Point (AP) để cấu hình thiết bị và Station (STA) để kết nối Internet. Quá trình chuyển đổi và duy trì trạng thái mạng được quản lý chặt chẽ thông qua các cờ trạng thái (state flags) và bộ nhớ không bay hơi.
 
-\subsection{Nhiệm vụ 4: Khám phá hệ thống tệp hợp nhất (OverlayFS)}
+Để đảm bảo ESP32 có thể tự động kết nối lại Wi-Fi sau khi mất điện hoặc khởi động lại, hệ thống sử dụng thư viện Preferences.h thay vì EEPROM truyền thống. Thư viện này lưu trữ dữ liệu dưới dạng key-value vào phân vùng NVS của bộ nhớ Flash, giúp việc đọc/ghi an toàn và tránh phân mảnh bộ nhớ.
+\begin{lstlisting}
+bool loadWifiCredentials(String &savedSsid, String &savedPass) {
+  wifiPrefs.begin("wifi\_cfg", true);
+  savedSsid = wifiPrefs.getString("ssid", "");
+  savedPass = wifiPrefs.getString("pass", "");
+  wifiPrefs.end();
+  return savedSsid.length() > 0;
+}
 
-Trong nhiệm vụ này, nhóm nghiên cứu khám phá cơ chế hoạt động của OverlayFS trong Docker thông qua việc kiểm tra các lớp (layers), cấu trúc thư mục và cơ chế Copy-on-Write (CoW).
+\end{lstlisting}
 
-\subsubsection{Thực hiện và kết quả}
+Tại hàm khởi tạo của main\_server\_task, hệ thống sẽ gọi loadWifiCredentials(). Nếu tìm thấy thông tin cấu hình hợp lệ, hệ thống sẽ tự động chuyển sang trạng thái connecting = true và gọi hàm connectToWiFi().
 
-\paragraph{Bước 1: Kiểm tra các lớp của image và thông tin GraphDriver}
-Đầu tiên, nhóm kiểm tra lịch sử các lớp của image \texttt{ubuntu} và thông tin chi tiết về driver lưu trữ. Kết quả cho thấy image được cấu thành từ các lớp chỉ đọc.
 
-\begin{small}
-\begin{verbatim}
-vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker history ubuntu
-IMAGE          CREATED       CREATED BY                                      SIZE      COMMENT
-c3a134f2ace4   7 weeks ago   /bin/sh -c #(nop)  CMD ["/bin/bash"]            0B
-<missing>      7 weeks ago   /bin/sh -c #(nop) ADD file:ddf1aa62235de6657…   78.1MB
-<missing>      7 weeks ago   /bin/sh -c #(nop)  LABEL org.opencontainers.…   0B
-...
+\subsection{Tích hợp Web Server trong FreeRTOS}
 
-vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker image inspect ubuntu
-[
-    {
-        "Id": "sha256:c3a134f2ace4f6d480733efcfef27c60ea8ed48be1cd36f2c17ec0729775b2c8",
-        ...
-        "GraphDriver": {
-            "Data": {
-                "MergedDir": "/var/lib/docker/overlay2/.../merged",
-                "UpperDir": "/var/lib/docker/overlay2/.../diff",
-                "WorkDir": "/var/lib/docker/overlay2/.../work"
-            },
-            "Name": "overlay2"
-        },
-        "RootFS": {
-            "Type": "layers",
-            "Layers": [
-                "sha256:e8bce0aabd687e9ee90e0bada33884f40b277196f72aac9934357472863a80ae"
-            ]
+Trong hệ thống nhúng dựa trên ESP32, việc vận hành một máy chủ web yêu cầu khả năng xử lý đồng thời các truy vấn HTTP mà không làm gián đoạn các tác vụ thu thập dữ liệu cảm biến hay xử lý AI (TinyML). Để giải quyết vấn đề này, Web Server được thiết kế chạy trên một luồng (task) riêng biệt của hệ điều hành FreeRTOS.
+
+\subsubsection{Cấu trúc đa nhiệm và khởi tạo Task}
+Thay vì đặt logic xử lý trong hàm \texttt{loop()} truyền thống của Arduino, máy chủ web được đóng gói trong hàm \texttt{main\_server\_task}. Việc sử dụng FreeRTOS cho phép chỉ định mức độ ưu tiên (priority) và kích thước bộ nhớ stack phù hợp cho dịch vụ mạng.
+
+\begin{lstlisting}[language=C++, caption={Khởi tạo tác vụ Web Server trong FreeRTOS}]
+void main_server_task(void *pvParameters) {
+
+    startAP();
+    setupServer();
+
+    while (1) {
+
+        server.handleClient();
+
+        if (digitalRead(BOOT_PIN) == LOW) {
+            handleHardwareReset();
         }
+
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
-]
-\end{verbatim}
-\end{small}
+}
+\end{lstlisting}
 
-\paragraph{Bước 2: Phân tích cấu trúc thư mục OverlayFS}
-Kiểm tra cấu trúc thư mục của một container đang chạy (\texttt{oslab}). Hệ thống hiển thị rõ ràng các thư mục \texttt{LowerDir}, \texttt{UpperDir} và \texttt{MergedDir}.
+\subsubsection{Cơ chế đồng bộ hóa bằng Binary Semaphore}
+Hệ thống sử dụng \textit{Binary Semaphore} (\texttt{xBinarySemaphoreInternet}) để quản lý sự phụ thuộc giữa các tầng dịch vụ. Các tác vụ yêu cầu kết nối Internet (như gửi dữ liệu lên Cloud hoặc cập nhật thời gian NTP) sẽ ở trạng thái \textit{Blocked} cho đến khi Web Server xác nhận kết nối Wi-Fi thành công.
 
-\begin{small}
-\begin{verbatim}
-vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker inspect oslab | grep -A 15 "GraphDriver"
-        "GraphDriver": {
-            "Data": {
-                "ID": "f2c62b94ac7aa2f98d188f897f75ec7f03a431e680a844c86bb6a4dd651efeda",
-                "LowerDir": "/var/lib/docker/overlay2/...-init/diff:/var/lib/docker/overlay2/.../diff",
-                "MergedDir": "/var/lib/docker/overlay2/e56dc016f46bad34f33df88a4fd273af9112f94fec2021f54b2aecf0c261851d/merged",
-                "UpperDir": "/var/lib/docker/overlay2/e56dc016f46bad34f33df88a4fd273af9112f94fec2021f54b2aecf0c261851d/diff",
-                "WorkDir": "/var/lib/docker/overlay2/e56dc016f46bad34f33df88a4fd273af9112f94fec2021f54b2aecf0c261851d/work"
-            },
-            "Name": "overlay2"
-        },
-
-// Xem thông tin layers cụ thể
-vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker container inspect oslab --format='{{.GraphDriver.Data.UpperDir}}'
-/var/lib/docker/overlay2/e56dc016f46bad34f33df88a4fd273af9112f94fec2021f54b2aecf0c261851d/diff
-\end{verbatim}
-\end{small}
-
-\paragraph{Bước 3: Kiểm chứng thay đổi tệp trên Host (UpperDir)}
-Khi tạo một file mới (\texttt{hello\_world.txt}) bên trong container, file này xuất hiện ngay lập tức tại thư mục \texttt{UpperDir} trên máy chủ (Host), chứng minh cơ chế lưu trữ của OverlayFS.
-
-\begin{small}
-\begin{verbatim}
-vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker exec oslab touch /hello_world.txt
-vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ sudo ls -l /var/lib/docker/overlay2/.../diff
-[sudo] password for vinhle:
-total 4
--rw-r--r-- 1 root root 13 Dec  8 10:32 hello_world.txt
--rw-r--r-- 1 root root  0 Dec  8 10:23 help_me
-\end{verbatim}
-\end{small}
-
-\paragraph{Bước 4: Thí nghiệm về hiệu quả lưu trữ và tốc độ}
-Nhóm tạo nhiều container giống nhau (\texttt{test-1, 2, 3}). Kết quả lệnh \texttt{docker system df} cho thấy dung lượng chiếm dụng của các container này rất nhỏ (0B hoặc vài Bytes) do chia sẻ chung Image gốc. Thời gian khởi tạo container chỉ khoảng 0.5 giây.
-
-\begin{small}
-\begin{verbatim}
-vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ for i in {1..3}; do
-    docker run -d --name test-$i ubuntu sleep infinity
-done
-
-vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker system df
-TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
-Images          8         2         933.5MB   933.5MB (99%)
-Containers      11        4         311MB     311MB (99%)
-
-vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ time docker run --rm ubuntu echo "Hello"
-Hello
-real    0m0.508s
-user    0m0.011s
-sys     0m0.022s
-\end{verbatim}
-\end{small}
-
-\paragraph{Bước 5: Thí nghiệm Copy-on-Write (CoW)}
-Thực hiện ghi một file 100MB vào container \texttt{cow-test}. Kết quả kiểm tra dung lượng cho thấy chỉ container này tăng kích thước lên 105MB, trong khi các container khác vẫn giữ nguyên kích thước 0B và không bị ảnh hưởng.
-
-\begin{small}
-\begin{verbatim}
-vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker run -d --name cow-test ubuntu sleep infinity
-vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker exec cow-test bash -c "dd if=/dev/zero of=/largefile bs=1M count=100"
-100+0 records in
-100+0 records out
-104857600 bytes (105 MB, 100 MiB) copied, 0.0675462 s, 1.6 GB/s
-
-vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker system df -v
-Containers space usage:
-CONTAINER ID   IMAGE    COMMAND            SIZE      NAMES
-cb8d8cce43a1   ubuntu   "sleep infinity"   105MB     cow-test
-54360efd0b32   ubuntu   "sleep infinity"   0B        test-3
-4225421813c6   ubuntu   "sleep infinity"   0B        test-2
-
-vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker run -d --name cow-test2 ubuntu sleep infinity
-vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker exec cow-test2 ls -lh /largefile 2>/dev/null || echo "File not exist"
-File not exist
-\end{verbatim}
-\end{small}
-
-\subsubsection{Thảo luận và trả lời câu hỏi}
-
-\textbf{Câu 1: Tại sao chỉ có lớp bị sửa đổi được lưu trữ?}
 \begin{itemize}
-    \item Docker sử dụng cơ chế \textbf{Copy-on-Write (CoW)}. Lớp Image gốc luôn ở trạng thái Chỉ-đọc (Read-only). Khi container cần ghi file, nó sao chép file đó lên lớp trên cùng (UpperDir) và sửa đổi tại đó. Do đó, chỉ phần dữ liệu khác biệt mới chiếm dụng dung lượng đĩa.
+    \item \textbf{Cơ chế kích hoạt:} Khi trạng thái mạng chuyển sang \texttt{WL\_CONNECTED}, hàm \texttt{xSemaphoreGive()} được gọi.
+    \item \textbf{Ý nghĩa:} Kỹ thuật này giúp tiết kiệm tài nguyên CPU, thay vì các task phải liên tục kiểm tra trạng thái Wi-Fi (busy-waiting), chúng chỉ thực thi khi có tín hiệu từ Web Server.
 \end{itemize}
 
-\textbf{Câu 2: OverlayFS cho phép tái sử dụng image như thế nào?}
+\subsubsection{Tối ưu hóa hiệu năng và độ ổn định}
+Để đảm bảo Web Server hoạt động ổn định trong môi trường tài nguyên hạn chế của ESP32, các kỹ thuật sau đã được áp dụng:
+
+\begin{enumerate}
+    \item \textbf{Non-blocking Request Handling:} Hàm \texttt{server.handleClient()} được gọi lặp lại trong vòng lặp của task. Việc sử dụng \texttt{vTaskDelay(20)} cực kỳ quan trọng để bộ lập lịch (Scheduler) có thể cấp phát thời gian cho tác vụ IDLE, từ đó ngăn chặn lỗi \textit{Task Watchdog Timer (TWDT)} reset vi điều khiển.
+    \item \textbf{Quản lý bộ nhớ Stack:} Do giao diện Web chứa nhiều chuỗi HTML dài (Raw String Literals), kích thước stack của task được tính toán kỹ lưỡng để tránh hiện tượng \textit{Stack Overflow} khi xử lý các chuỗi JSON phức tạp.
+    \item \textbf{Ưu tiên tác vụ (Priority Management):} Tác vụ Web Server thường được thiết lập mức ưu tiên trung bình. Điều này đảm bảo phản hồi HTTP vẫn nhanh nhạy nhưng không chiếm quyền ưu tiên của các tác vụ thời gian thực như đọc dữ liệu từ cảm biến DHT22 hoặc xử lý tín hiệu AI.
+\end{enumerate}
+
+
+\subsection{Thiết kế RESTful API và Giao tiếp Client-Server}
+
+Để đảm bảo Dashboard hoạt động mượt mà và cập nhật dữ liệu thời gian thực mà không cần tải lại toàn bộ trang web, hệ thống áp dụng mô hình RESTful API dựa trên giao thức HTTP.
+
+\subsubsection{Cấu trúc các Endpoint}
+Các yêu cầu từ trình duyệt được phân loại và xử lý thông qua các hàm callback cụ thể được đăng ký trong phương thức \texttt{setupServer()}. Các Endpoint chính bao gồm:
 \begin{itemize}
-    \item Như đã thấy trong bảng số liệu, các container \texttt{test-1, 2, 3} đều có dung lượng 0B. Chúng cùng chia sẻ các con trỏ trỏ về Image \texttt{ubuntu} gốc. Hệ điều hành không cần sao chép các tệp tin hệ thống cho mỗi container, giúp tiết kiệm không gian đáng kể.
+    \item \textbf{Dữ liệu cảm biến:} \texttt{GET /sensors} trả về nhiệt độ và độ ẩm hiện tại dưới định dạng JSON.
+    \item \textbf{Lịch sử dữ liệu:} \texttt{GET /history} cung cấp mảng 10 mẫu dữ liệu gần nhất để vẽ biểu đồ.
+    \item \textbf{Điều khiển thiết bị:} \texttt{GET /toggle}, \texttt{GET /led-rgb} và \texttt{GET /led-brightness} tiếp nhận các tham số để điều chỉnh trạng thái phần cứng.
+    \item \textbf{Giám sát AI:} \texttt{GET /tinyml-status} cung cấp kết quả dự đoán từ mô hình học máy.
 \end{itemize}
 
-\textbf{Câu 3: Hệ thống tệp phân lớp cải thiện hiệu quả ảo hóa ra sao?}
+\subsubsection{Xử lý dữ liệu định dạng JSON}
+Thay vì sử dụng các thư viện bên thứ ba có thể gây tốn tài nguyên RAM, hệ thống thực hiện xây dựng chuỗi JSON thủ công bằng đối tượng \texttt{String} để tối ưu hóa tốc độ phản hồi. Các chuỗi ký tự đặc biệt được xử lý qua hàm \texttt{escapeJsonString()} nhằm đảm bảo tính hợp lệ của gói tin khi truyền tải các nội dung có dấu hoặc ký tự điều khiển.
+
+\subsection{Xử lý và Hiển thị kết quả TinyML}
+
+Tính năng nổi bật của hệ thống là khả năng giám sát các đề xuất từ mô hình TinyML chạy trực tiếp tại biên (Edge AI). 
+
+\subsubsection{Giải mã nhãn dự đoán (Label Mapping)}
+Kết quả từ mô hình TinyML là các chỉ số số nguyên (nhãn). Tại server, các nhãn này được chuyển đổi sang ngôn ngữ tự nhiên thông qua hàm \texttt{tinyMlLabelText()} và \texttt{tinyMlSuggestionText()} để người dùng dễ dàng theo dõi. 
 \begin{itemize}
-    \item \textbf{Tiết kiệm lưu trữ:} Tránh dư thừa dữ liệu (Deduplication).
-    \item \textbf{Tăng tốc độ khởi tạo:} Không cần sao chép toàn bộ OS khi khởi chạy (0.5s so với hàng phút của VM).
-    \item \textbf{Cô lập an toàn:} Thay đổi ở container này (như file 100MB trong \texttt{cow-test}) hoàn toàn không ảnh hưởng đến container khác (\texttt{cow-test2}).
+    \item \textbf{Nhãn 1-3:} Tương ứng với các trạng thái cần tác động như bật điều hòa, máy hút ẩm hoặc máy sưởi.
+    \item \textbf{Nhãn 4:} Trạng thái bình thường.
+    \item \textbf{Nhãn 0:} Cảnh báo dữ liệu bất thường hoặc cảm biến lỗi.
 \end{itemize}
+
+\subsubsection{Cơ chế xác định độ tươi của dữ liệu (Data Staleness)}
+Hệ thống tính toán biến \texttt{age\_ms} dựa trên hiệu số giữa thời gian hiện tại (\texttt{millis()}) và thời điểm cập nhật dự đoán cuối cùng (\texttt{tinyml\_last\_update\_ms}). Nếu giá trị này vượt quá ngưỡng 10 giây, giao diện người dùng sẽ tự động chuyển trạng thái sang "Mất tín hiệu" (\texttt{stale}), giúp đảm bảo tính tin cậy của thông tin hiển thị.
+
+\subsection{Lưu trữ Web UI và Cơ chế Vẽ biểu đồ Dự phòng}
+
+\subsubsection{Lưu trữ giao diện bằng Raw String Literals}
+Toàn bộ mã nguồn giao diện (HTML, CSS và JavaScript) được lưu trữ trực tiếp trong bộ nhớ Flash của ESP32 dưới dạng các chuỗi hằng số sử dụng kỹ thuật \textit{Raw String Literals} (\texttt{R"rawliteral(...)rawliteral"}). Cách tiếp cận này giúp đơn giản hóa việc quản lý mã nguồn giao diện mà không cần sử dụng hệ thống tệp tin phức tạp như SPIFFS hay LittleFS.
+
+\subsubsection{Giải pháp vẽ biểu đồ dự phòng (Fallback Canvas)}
+Trong kịch bản thiết bị hoạt động ở chế độ Access Point (AP) không có kết nối Internet, trình duyệt sẽ không thể tải thư viện \texttt{Chart.js} từ CDN. Để giải quyết vấn đề này, hệ thống hiện thực một cơ chế dự phòng thông minh trong JavaScript:
+\begin{enumerate}
+    \item Kiểm tra sự tồn tại của đối tượng \texttt{window.Chart}.
+    \item Nếu không có Internet, hàm \texttt{drawFallbackChart()} sẽ được kích hoạt để vẽ biểu đồ trực tiếp lên HTML5 Canvas API bằng các thuật toán đồ họa cơ bản.
+    \item Cơ chế này đảm bảo người dùng luôn quan sát được trực quan xu hướng biến đổi của nhiệt độ và độ ẩm trong mọi điều kiện kết nối.
+\end{enumerate}
+
