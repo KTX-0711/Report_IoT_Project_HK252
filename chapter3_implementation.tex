@@ -1,3 +1,4 @@
+% !TeX root = main.tex
 \newpage
 \section{Thiết kế và triển khai hệ thống}
 \subsection{Giới thiệu}
@@ -15,33 +16,10 @@
 \subsection{Nhiệm vụ 4: Máy chủ web ở chế độ Access Point}
 \textit{[Mô tả thiết lập chế độ AP, thiết kế các HTTP endpoint và xử lý giao diện web trên ESP32-S3.]}
 
-\subsection{Nhiệm vụ 5: Triển khai TinyML và đánh giá độ chính xác}
-\textit{[Trình bày luồng tích hợp TinyML, quá trình suy luận trên thiết bị và các thước đo đánh giá.]}
-
+\input{task5.tex}
+\newpage
 \subsection{Nhiệm vụ 6: Gửi dữ liệu lên máy chủ đám mây CoreIoT}
 \textit{[Mô tả định dạng dữ liệu gửi lên đám mây, quy trình publish và chiến lược đảm bảo độ tin cậy/thử lại.]}
-
-\subsubsection{Xây dựng tập dữ liệu}
-Đầu tiên, nhóm nghiên cứu thu thập dữ liệu từ cảm biến nhiệt độ và độ ẩm trong môi trường thực tế.
-Trong đó file collect\_form\_log.py có nhiệm vụ đọc log cảm biến từ cổng Serial của ESP32 và chuẩn hóa thành tập dữ liệu thô phục vụ huấn luyện. 
-Script được thiết kế với cơ chế parse nhiều tầng nhằm tăng khả năng tương thích với các định dạng log khác nhau, bao gồm JSON, chuỗi key-value T/H, và định dạng phân tách bằng dấu phẩy.
-Mỗi mẫu hợp lệ được ghi ngay vào CSV kèm timestamp UTC, giúp đảm bảo tính truy vết của dữ liệu. Để tăng độ tin cậy, hệ thống tự khởi tạo header khi file mới, ghi nối dữ liệu ở các phiên thu thập khác nhau, và flush sau mỗi mẫu để hạn chế mất dữ liệu khi dừng đột ngột. 
-Kết quả của bước này là tập raw\_data ổn định, làm đầu vào trực tiếp cho khâu gán nhãn và tạo tập train\_ready trong pipeline ML.
-Tuy nhiên do nhóm nghiên cứu không thể thu thập data ở trạng thái nhiệt độ, độ ẩm ở mức quá cao hoặc quá thấp nên phải sử dụng các lệnh script khác để tạo thêm dữ liệu đảm bảo tính tổng quát hóa của tập dữ liệu.
-
-Tiếp theo, nhóm tiến hành gán nhãn cho tập dữ liệu thô dựa trên các ngưỡng nhiệt độ và độ ẩm đã định nghĩa. Script extract\_ready\_data.py được phát triển để tự động hóa quá trình này, giúp đảm bảo tính nhất quán và giảm thiểu sai sót so với gán nhãn thủ công.
-Quy tắc gán nhán được thiết lập dựa trên các mức nhiệt độ và độ ẩm, ví dụ:
-\begin{itemize}
-    \item Khi độ ẩm nằm ngoài khoảng [0-100\%] hoặc nhiệt độ nằm ngoài khoảng [-40°C đến 100°C], mẫu được gán nhãn "Không hợp lệ".
-    \item  Nhiệt độ 20-30°C và Độ ẩm 30-60
-    \item Nhiệt độ > 30°C và Độ ẩm > 60
-    \item Các mức khác được gán nhãn tương ứng để tạo ra các lớp phân loại rõ ràng cho mô hình ML.
-\end{itemize}
-\subsubsection{Huấn luyện các mô hình và đánh giá để chọn mô hình phù hợp nhất}
-\textit{[Trình bày các mô hình đã thử nghiệm, tiêu chí đánh giá (độ chính xác, độ trễ, bộ nhớ) và lý do chọn mô hình cuối cùng.]}
-
-\subsubsection{Kiểm thử lại mô hình và nhúng xuống firmware}
-\textit{[Mô tả bước kiểm thử sau tối ưu hóa, chuyển đổi mô hình sang định dạng phù hợp (ví dụ: TensorFlow Lite Micro), tích hợp vào firmware và xác minh trên thiết bị thật.]}
 
 \subsection{Tổng quan kiến trúc}
 \textit{[Trình bày kiến trúc tổng thể của hệ thống, luồng dữ liệu và sự tương tác giữa các tác vụ.]}
@@ -51,3 +29,4 @@ Quy tắc gán nhán được thiết lập dựa trên các mức nhiệt độ
 
 \subsection{Tóm tắt chương}
 \textit{[Tóm tắt nội dung chương triển khai.]}
+

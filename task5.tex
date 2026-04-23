@@ -1,122 +1,66 @@
-\newpage
-\subsection{Nhiệm vụ 5: So sánh các base image Docker (khác biệt ở mức hệ điều hành)}
-
-Trong phần này, chúng ta thực hiện so sánh chi tiết ba loại Docker base image: \textbf{Ubuntu}, \textbf{Debian Slim} và \textbf{Alpine Linux}. Mục tiêu là phân tích sự đánh đổi giữa kích thước image, khả năng tương thích phần mềm, độ phong phú của các công cụ tiện ích (utilities) và hành vi giao tiếp với kernel thông qua thư viện C chuẩn (libc).
-
-\subsubsection{Phương pháp thực hiện}
-
-Để đánh giá khách quan các khác biệt ở cấp độ hệ điều hành, chúng tôi đã xây dựng cùng một ứng dụng đơn giản (\texttt{hello.c}) trên ba môi trường Docker khác nhau: \textbf{Ubuntu}, \textbf{Debian Slim} và \textbf{Alpine Linux}. Quy trình kiểm thử được chia thành hai giai đoạn chính: biên dịch và theo dõi hành vi (Build and Trace), cùng với thu thập dữ liệu tự động (Automated Data Collection).
-
-\begin{enumerate}
-    \item \textbf{Build và Trace (Biên dịch và theo dõi system call):} Quá trình này tạo ra các image chứa ứng dụng đã biên dịch và theo dõi cách ứng dụng giao tiếp với nhân (kernel) của container.
-    \item \textbf{Phân tích tự động (Automated Analysis):} Sử dụng script shell để lập bảng đo lường các yếu tố định lượng như kích thước image, số lượng tiện ích hệ thống và cường độ sử dụng system call.
-\end{enumerate}
-
-\paragraph{Lệnh build và theo dõi system call}
-
-Các lệnh sau được sử dụng để xây dựng các image ứng dụng tương ứng với từng base image, sau đó sử dụng công cụ \texttt{strace} để ghi lại tất cả các system call (lời gọi hệ thống) mà ứng dụng \texttt{./app} thực hiện từ lúc khởi chạy đến khi kết thúc.
-
-\begin{lstlisting}[frame=single]
-$ docker build -t app-ubuntu -f Dockerfile.ubuntu .
-$ docker build -t app-debian -f Dockerfile.debian .
-$ docker build -t app-alpine -f Dockerfile.alpine .
-\end{lstlisting}
-
-\textbf{Mô tả:} Các lệnh \texttt{docker build} này tạo ra ba image riêng biệt (\texttt{app-ubuntu}, \texttt{app-debian}, \texttt{app-alpine}), mỗi image được xây dựng dựa trên một base OS khác nhau và chứa cùng một ứng dụng.
-
-\begin{lstlisting}[frame=single]
-$ docker run --rm app-ubuntu strace ./app
-$ docker run --rm app-debian strace ./app
-$ docker run --rm app-alpine strace ./app
-\end{lstlisting}
-
-\textbf{Mô tả:} Lệnh \texttt{docker run} thực thi image đã xây dựng. Cờ \texttt{--rm} đảm bảo container tự động bị xóa sau khi dừng. \textbf{\texttt{strace ./app}} là phần quan trọng nhất: \texttt{strace} được đặt làm entrypoint, nó sẽ chặn và ghi lại toàn bộ các lời gọi hệ thống (như \texttt{open}, \texttt{write}, \texttt{read}, \texttt{execve}, v.v.) mà ứng dụng \texttt{./app} tạo ra. Việc so sánh log \texttt{strace} giữa các hệ điều hành sẽ tiết lộ sự khác biệt trong cách các thư viện C chuẩn (\texttt{glibc} và \texttt{musl}) xử lý I/O và khởi tạo môi trường.
-
-\paragraph{Script thu thập dữ liệu tự động}
-
-Script shell sau đây được sử dụng để tự động đo lường và so sánh các thông số kỹ thuật, đảm bảo tính nhất quán trong việc thu thập dữ liệu cho bảng so sánh.
+\subsection{Nhiệm vụ 5: Triển khai TinyML và đánh giá độ chính xác}
+\textit{[Trình bày luồng tích hợp TinyML, quá trình suy luận trên thiết bị và các thước đo đánh giá.]}
 
 
-\begin{lstlisting}[frame=single]
-CheckList=(
-    "app-alpine:alpine:latest"
-    "app-ubuntu:ubuntu:latest"
-    "app-debian:debian:stable-slim"
-)
-
-printf "\n%-15s | %-10s | %-10s | %-8s | %-8s | %-12s\n" "IMAGE NAME" "APP SIZE" "BASE SIZE" "LIBC" "UTILS" "STRACE (loc)"
-echo "----------------+------------+------------+----------+----------+--------------"
-
-for item in "${CheckList[@]}"; do
-    IMG_NAME="${item%%:*}"
-    BASE_NAME="${item#*:}"
-
-    APP_SIZE=$(docker images --format "{{.Size}}" "$IMG_NAME" | head -n 1)
-    BASE_SIZE=$(docker images --format "{{.Size}}" "$BASE_NAME" | head -n 1)
-    
-    if [ -z "$BASE_SIZE" ]; then BASE_SIZE="N/A"; fi
-
-    if [[ "$IMG_NAME" == *"alpine"* ]]; then
-        LIBC="musl"
-    else
-        LIBC="glibc"
-    fi
-
-    UTILS_COUNT=$(docker run --rm --entrypoint /bin/sh "$IMG_NAME" -c "ls /bin /usr/bin /sbin /usr/sbin 2>/dev/null | wc -l")
-    STRACE_LINES=$(docker run --rm "$IMG_NAME" strace ./app 2>&1 | wc -l)
-
-    printf "%-15s | %-10s | %-10s | %-8s | %-8s | %-12s\n" "$IMG_NAME" "$APP_SIZE" "$BASE_SIZE" "$LIBC" "$UTILS_COUNT" "$STRACE_LINES"
-done
-echo ""
-\end{lstlisting}
-
-\textbf{Mô tả chi tiết các tham số đo lường:}
+\subsubsection{Xây dựng tập dữ liệu}
+Đầu tiên, nhóm nghiên cứu thu thập dữ liệu từ cảm biến nhiệt độ và độ ẩm trong môi trường thực tế.
+Trong đó file collect\_form\_log.py có nhiệm vụ đọc log cảm biến từ cổng Serial của ESP32 và chuẩn hóa thành tập dữ liệu thô phục vụ huấn luyện. 
+Script được thiết kế với cơ chế parse nhiều tầng nhằm tăng khả năng tương thích với các định dạng log khác nhau, bao gồm JSON, chuỗi key-value T/H, và định dạng phân tách bằng dấu phẩy.
+\\
+Mỗi mẫu hợp lệ được ghi ngay vào CSV kèm timestamp UTC, giúp đảm bảo tính truy vết của dữ liệu. Để tăng độ tin cậy, hệ thống tự khởi tạo header khi file mới, ghi nối dữ liệu ở các phiên thu thập khác nhau, và flush sau mỗi mẫu để hạn chế mất dữ liệu khi dừng đột ngột. 
+Kết quả của bước này là tập raw\_data ổn định, làm đầu vào trực tiếp cho khâu gán nhãn và tạo tập train\_ready trong pipeline ML.
+Tuy nhiên do nhóm nghiên cứu không thể thu thập data ở trạng thái nhiệt độ, độ ẩm ở mức quá cao hoặc quá thấp nên phải sử dụng các lệnh script khác để tạo thêm dữ liệu đảm bảo tính tổng quát hóa của tập dữ liệu.
+\\
+Tiếp theo, nhóm tiến hành gán nhãn cho tập dữ liệu thô dựa trên các ngưỡng nhiệt độ và độ ẩm đã định nghĩa. Script extract\_ready\_data.py được phát triển để tự động hóa quá trình này, giúp đảm bảo tính nhất quán và giảm thiểu sai sót so với gán nhãn thủ công.
+Quy tắc gán nhán được thiết lập dựa trên các mức nhiệt độ và độ ẩm, ví dụ:
 \begin{itemize}
-    \item \textbf{APP SIZE \& BASE SIZE:} Đo lường kích thước chính xác của image ứng dụng và image nền tảng. Đây là cơ sở định lượng cho sự đánh đổi về dung lượng lưu trữ.
-    \item \textbf{LIBC (C Library):} Xác định thư viện C chuẩn được sử dụng (\textbf{glibc} cho hệ thống dựa trên Debian/Ubuntu, \textbf{musl} cho Alpine). Đây là yếu tố quyết định khả năng tương thích nhị phân (binary compatibility). 
-    \item \textbf{UTILS (Utility Count):} Đếm tổng số lượng file thực thi trong các thư mục hệ thống tiêu chuẩn (\texttt{/bin}, \texttt{/usr/bin}, v.v.). Con số này phản ánh mức độ "tối giản" hoặc "đầy đủ" của môi trường, ảnh hưởng trực tiếp đến khả năng gỡ lỗi (debugging) trong container.
-    \item \textbf{STRACE (loc):} Đếm số dòng output của \texttt{strace}. Đây là một chỉ số định lượng về số lượng system call mà ứng dụng thực hiện. Sự khác biệt về số lượng sẽ làm rõ cơ chế quản lý tài nguyên và buffering của \texttt{glibc} so với \texttt{musl}.
+    \item Khi độ ẩm nằm ngoài khoảng [0-100\%] hoặc nhiệt độ nằm ngoài khoảng [-40°C đến 100°C], mẫu được gán nhãn "Không hợp lệ".
+    \item Khi nhiệt độ nhỏ hơn 24°C thì sẽ được gán nhãn là "Bật máy sưởi".
+    \item Khi nhiệt độ lớn hơn 33°C và độ ẩm nằm trong khoảng [0-80\%] thì sẽ được gán nhãn là "Bật điều hòa".
+    \item Khi nhiệt độ lớn hơn 33°C và độ ẩm lớn hơn 80\% thì sẽ được gán nhãn là "Bật máy hút ẩm".
+    \item Còn lại sẽ được gán nhãn là "Chế độ bình thường".
 \end{itemize}
 
-\subsubsection{Kết quả thực nghiệm}
-
-Dựa trên đầu ra của khối lệnh Bash tự động hóa, chúng tôi đã thu thập thành công các thông số định lượng quan trọng cho từng image. Bảng số liệu so sánh dưới đây (Hình \ref{fig:docker-comparison}) tổng hợp các chỉ số được đo lường, làm cơ sở cho việc phân tích chuyên sâu các sự khác biệt ở cấp độ kiến trúc.
-
-
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=1\linewidth]{Task5.png}
-\caption{Bảng so sánh chi tiết các chỉ số kỹ thuật giữa ba Docker image: kích thước, libc, tiện ích và cường độ system call.}
-\label{fig:docker-comparison}
-\end{figure}
-
-\textit{Lưu ý: Các giá trị số liệu trong bảng (Kích thước theo MB, số lượng Utilities, và số dòng Strace) là kết quả trực tiếp từ môi trường kiểm thử đã thiết lập. Các thông số này phản ánh mối tương quan chặt chẽ giữa sự lựa chọn Libc (\textbf{glibc} vs. \textbf{musl}) và cấu trúc tổng thể của Image. Cụ thể, số lượng System Call (\textbf{STRACE loc}) cung cấp dữ liệu định lượng về sự khác biệt trong cơ chế hoạt động của các thư viện chuẩn C khi ứng dụng khởi chạy.}
-
-\paragraph{Trả lời câu hỏi và phân tích chuyên sâu}
-
-Dựa trên các kết quả thực nghiệm và sự khác biệt về cấu trúc giữa ba loại image, chúng tôi đưa ra các phân tích giải đáp cho các câu hỏi nghiên cứu của Task 5.
-
-\paragraph{Tại sao các image dựa trên Alpine thường gặp vấn đề tương thích phần mềm?}
-
-Nguyên nhân cốt lõi nằm ở sự khác biệt của thư viện chuẩn C (\textbf{Libc}).
+Lúc này tập dữ liệu đã được gán nhãn sẽ được lưu vào file train\_ready.csv, sẵn sàng cho bước huấn luyện mô hình ML.
+\subsubsection{Huấn luyện các mô hình và đánh giá để chọn mô hình phù hợp nhất}
+\textit{[Trình bày các mô hình đã thử nghiệm, tiêu chí đánh giá (độ chính xác, độ trễ, bộ nhớ) và lý do chọn mô hình cuối cùng.]}
+Từ tập dữ liệu đã đưoc gán nhãn, nhóm tiến hành huấn luyện nhiều mô hình ML khác nhau, bao gồm Decision Tree, Random Forest, SVM và một MLP đơn giản.
+Mỗi mô hình được đánh giá dựa trên các thước đo sau:
 \begin{itemize}
-    \item \textbf{Sự khác biệt về ABI (Application Binary Interface):} Alpine Linux sử dụng \textbf{musl libc}, trong khi hầu hết các bản phân phối Linux phổ biến khác (như Ubuntu, Debian, CentOS) sử dụng \textbf{glibc} (GNU C Library). Các phần mềm đóng gói sẵn (pre-compiled binaries) hoặc các thư viện Python (wheels) thường được biên dịch liên kết động với \texttt{glibc}. Khi chạy các ứng dụng này trên Alpine, hệ thống sẽ không tìm thấy các thư viện liên kết cần thiết hoặc gặp lỗi do định nghĩa hàm trong \texttt{musl} khác với \texttt{glibc}.
-    \item \textbf{Thiếu hụt các tiện ích mặc định:} Để giữ kích thước nhỏ, Alpine lược bỏ nhiều công cụ và thư viện bổ trợ mà các ứng dụng lớn có thể ngầm định là "đương nhiên phải có" trên hệ thống, dẫn đến lỗi runtime nếu không được cài đặt thủ công.
+    \item Độ chính xác (Accuracy): Trên tập huấn luyện (Train) và tập kiểm thử (Test) để đo lường khả năng dự đoán và kiểm tra hiện tượng quá khớp (overfitting).
+    \item Kích thước mô hình (Artifact Size): Đo bằng Kilobytes (KB).
+    \item Thời gian suy luận (Inference Latency): Đo bằng mili-giây (ms/sample). Quyết định độ trễ của hệ thống khi phản hồi môi trường thực tế.
 \end{itemize}
+\subsubsection*{Mô hình Mạng Nơ\-ron Đa tầng (MLP)}
 
-\paragraph{Sự khác biệt của libc ảnh hưởng như thế nào đến system call?}
 
-Kết quả từ công cụ \textbf{strace} cho thấy sự khác biệt rõ rệt trong cách ứng dụng giao tiếp với Kernel:
-\begin{itemize}
-    \item \textbf{Glibc (Ubuntu/Debian):} Có xu hướng tạo ra số lượng system calls lớn hơn nhiều (như đã thấy trong bảng kết quả). Nguyên nhân là do \texttt{glibc} thực hiện cơ chế khởi tạo phức tạp (initialization), tải cấu hình locale, và sử dụng bộ đệm (buffering) ở tầng người dùng (user-space) trước khi thực sự gọi xuống kernel. Điều này tối ưu hóa băng thông cho các ứng dụng lớn nhưng tạo ra độ trễ khởi động (overhead) cho các ứng dụng nhỏ.
-    \item \textbf{Musl (Alpine):} Được thiết kế tối giản, \texttt{musl} thường ánh xạ trực tiếp các hàm thư viện C sang system calls của kernel (1-to-1 mapping) mà không qua nhiều lớp trung gian. Do đó, log \texttt{strace} trên Alpine thường ngắn gọn, sạch sẽ và sát với hoạt động thực tế của kernel hơn.
-\end{itemize}
+Mô hình Mạng Nơ-ron Đa tầng (MLP) trong hệ thống được thiết kế chuyên biệt để giải quyết bài toán phân loại trạng thái thiết bị nhưng vẫn phải tuân thủ giới hạn tài nguyên khắt khe của vi điều khiển ESP32. 
+Kiến trúc mạng được khởi tạo qua thư viện Keras rất tinh gọn: bao gồm một lớp đầu vào nhận hai đặc trưng môi trường (Nhiệt độ và Độ ẩm), 
+theo sau là hai lớp ẩn (hidden layers) mỏng với chỉ 16 nơ-ron mỗi lớp sử dụng hàm kích hoạt phi tuyến ReLU. 
+Lớp đầu ra sử dụng hàm Softmax để xuất ra xác suất cho từng trạng thái của thiết bị (như bật điều hòa, chờ, hút ẩm...). 
 
-\paragraph{Tại sao Ubuntu tạo ra image kích thước lớn nhưng lại ít lỗi tương thích hơn?}
 
-Đây là sự đánh đổi kinh điển giữa "Kích thước" và "Tính tiện dụng" (Trade-off):
-\begin{itemize}
-    \item \textbf{Kích thước lớn:} Ubuntu đi theo triết lý "Batteries Included" (Pin đi kèm). Một Base Image Ubuntu chứa sẵn trình quản lý gói đầy đủ (\texttt{apt}), \texttt{systemd}, các chứng chỉ SSL, và hàng loạt thư viện bổ trợ trong \texttt{/usr/lib}. Điều này làm tăng kích thước image lên hàng chục MB so với Alpine.
-    \item \textbf{Ít lỗi tương thích:} Nhờ sử dụng \textbf{glibc} (chuẩn công nghiệp) và bao gồm sẵn đầy đủ các dependency phổ biến, Ubuntu đảm bảo môi trường chạy ổn định cho hầu hết mọi phần mềm. Lập trình viên không cần mất thời gian biên dịch lại mã nguồn (compile from source) hay xử lý các lỗi thiếu thư viện liên kết động như khi làm việc với Alpine.
-\end{itemize}
+Để đảm bảo mô hình MLP có thể học được các mẫu hình (patterns) một cách hiệu quả, 
+toàn bộ dữ liệu đầu vào được yêu cầu phải đi qua bước chuẩn hóa Z-score. 
+Bước tiền xử lý này ép các giá trị nhiệt độ và độ ẩm về cùng một thang đo với trung bình bằng 0 và độ lệch chuẩn bằng 1, giúp thuật toán tối ưu hóa Adam (với learning rate là 1e-3) hội tụ nhanh và ổn định hơn.
+Trong pha huấn luyện, mô hình sử dụng hàm mất mát sparse\_categorical\_crossentropy cho nhãn phân loại dạng số nguyên. 
+Bên cạnh đó, hệ thống cũng áp dụng chiến lược kiểm định chéo (validation split) bằng cách trích ra 20\% dữ liệu từ tập huấn luyện để theo dõi 
+sát sao độ chính xác qua từng chu kỳ học (epoch), giúp phát hiện sớm và phòng tránh hiện tượng học vẹt (overfitting).
+
+
+Thay vì triển khai mô hình gốc dưới định dạng số thực 32\-bit (Float32) vốn đòi hỏi nhiều dung lượng và năng lực tính toán dấu phẩy động, 
+hệ thống sử dụng TFLiteConverter để thực hiện lượng tử hóa toàn phần về số nguyên 8-bit (Full Integer INT8 Quantization). 
+Để thực hiện điều này mà không làm suy giảm nghiêm trọng độ chính xác, một tập dữ liệu đại diện (representative\_dataset) 
+đã được đưa vào để bộ chuyển đổi đo lường và hiệu chỉnh dải giá trị động (dynamic range) của các nơ-ron. 
+Kết quả là mô hình cuối cùng (\_mlp\_int8.tflite) có kích thước giảm đi khoảng 4 lần, 
+thời gian suy luận (latency) giảm đáng kể và đặc biệt phù hợp để nhúng trực tiếp vào bộ nhớ Flash giới hạn của vi điều khiển ESP32.
+
+
+
+
+
+
+Sau khi đánh giá các mô hình, nhóm quyết định sẽ sử dụng mô hình Navie Byess để nhúng xuống ESP32.
+\subsubsection{Kiểm thử lại mô hình và nhúng xuống firmware}
+Trước khi nhúng mô hình đã chọn xuống firmware, nhóm tiến hành kiểm thử lại trên tập dữ liệu test để đảm bảo độ chính xác và hiệu suất của mô hình. 
+Ngoài nhóm còn chạy script python trong file test\_navie\_bayes.py để đưa vào các mẫu dữ liệu mới để kiểm tra độ chính xác của mô hình trên các dữ liệu chưa từng thấy trước đó.
