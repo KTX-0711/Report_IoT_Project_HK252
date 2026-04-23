@@ -33,6 +33,9 @@
 *.dvi
 *.ps
 
+# PDF files
+*.pdf
+
 # Build folders
 _build/
 out/
