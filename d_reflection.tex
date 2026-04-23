@@ -1,0 +1,5 @@
+\newpage
+\section{Reflection}
+Sau khi hoàn thành bài thực hành này, các khái niệm trừu tượng của Hệ điều hành như \textbf{Namespaces} và \textbf{cgroups} đã trở nên cụ thể hơn rất nhiều. nhóm nghiên cứu nhận ra rằng ``container'' thực chất không phải là một ``cái hộp'' vật lý hay một máy tính con, mà chỉ là sự kết hợp khéo léo của các cờ (flags) trong nhân Linux để đánh lừa tiến trình về những gì nó có thể nhìn thấy.
+
+Điểm gây bối rối ban đầu cho nhóm là cơ chế \textbf{OverlayFS} và khái niệm \textbf{Union Filesystem}. Việc hiểu tại sao một file bị xóa trong container nhưng vẫn tồn tại trong image gốc (chỉ bị che đi bởi một ``whiteout file'') khá trừu tượng cho đến khi phân tích các lớp layer. Tuy nhiên, chính điều này đã thay đổi hoàn toàn tư duy của nhóm nghiên cứu về ảo hóa: Ảo hóa hiện đại không còn là việc cố gắng giả lập lại toàn bộ phần cứng nặng nề (như VM), mà là tối ưu hóa việc chia sẻ tài nguyên (Kernel, File System) để đạt hiệu suất cao nhất trong khi vẫn duy trì sự cô lập cần thiết.

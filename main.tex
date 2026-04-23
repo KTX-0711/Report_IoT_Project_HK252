@@ -1,0 +1,196 @@
+\documentclass[a4paper,12pt]{article}
+
+%------------------------- packages -------------------------%
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese]{babel}
+\usepackage[unicode,hidelinks]{hyperref}    % for reference
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{array}
+\usepackage{fancyhdr}  % Ensure this is loaded last
+\usepackage{lastpage}
+\usepackage{setspace}
+\usetikzlibrary{calc}
+\usepackage{tabularx}
+\usepackage{array}  % For customizing row height
+\usepackage{multirow} %dùng cho phần vẽ bảng ở phần lý thuyết
+\usepackage[utf8]{inputenc}
+\usepackage[utf8]{vietnam}
+\usepackage{enumitem}
+\usepackage{adjustbox}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{float}
+
+\usepackage{listings}
+\usepackage{tcolorbox}
+\usepackage{caption}
+\usepackage{listings}
+\usepackage{tocloft} % for customizing TOC
+% for code and result
+\lstset{
+  breaklines=true,
+  breakatwhitespace=true,
+  basicstyle=\ttfamily\small, % Dùng font chữ nhỏ hơn
+  columns=fullflexible
+}
+\lstset{
+    frame=single,           % Tạo khung đơn giản bao quanh code
+    rulecolor=\color{black}, % Màu của khung
+    framerule=0.5pt,        % Độ dày của đường kẻ khung
+    framesep=3pt,           % Khoảng cách từ khung đến nội dung code
+}
+\usepackage[svgnames]{xcolor} % Cung cấp nhiều màu sắc hơn
+\tcbset{
+  colback=AliceBlue,       % Màu nền xanh rất nhạt
+  colframe=SteelBlue,      % Màu viền xanh dương đậm
+  coltitle=MidnightBlue,   % Màu tiêu đề xanh đen
+  coltext=DarkSlateGray,   % Màu chữ chính
+  fonttitle=\bfseries      % Font chữ in đậm cho tiêu đề
+}
+
+
+%------------------------- set up -------------------------%
+% Set the margins
+\geometry{
+    left=2cm,
+    right=2cm,
+    top=2.5cm,
+    bottom=2.5cm,
+}
+
+%------------------------- header & footer -------------------------%
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.5pt}
+\setlength{\headheight}{30pt}
+\pagestyle{fancy}
+
+\fancyhead{}    % clear all header fields
+\fancyhead[L]{
+    \begin{tabular}{ll}
+        \begin{picture}(10,10)
+            \put(0,-7){\includegraphics[width=8mm]{hcmut.png}}
+        \end{picture}&
+        \begin{tabular}{l}
+            {\ttfamily Trường Đại học Bách Khoa Tp. Hồ Chí Minh} \\
+            {\ttfamily Khoa Khoa học và Kỹ thuật Máy tính} \\
+        \end{tabular} 	
+    \end{tabular}
+}
+
+\fancyfoot{}    % clear all footer fields
+\fancyfoot[L]{\footnotesize {\ttfamily Extended Report }}
+\fancyfoot[R]{\footnotesize {\ttfamily Page {\thepage}/\pageref{LastPage}}}
+
+%------------------------- title format settings -------------------------%
+\titleformat{\chapter}[display]
+  {\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter}{20pt}{\Huge}
+
+% Multi-layered Blue Border Definition
+\newcommand{\coverpageborder}{
+    \begin{tikzpicture}[remember picture,overlay,inner sep=0,outer sep=0]
+        \draw[blue!70!black,line width=4pt] 
+            ([xshift=-1.5cm,yshift=-2cm]current page.north east) coordinate (A)--([xshift=1.5cm,yshift=-2cm]current page.north west) coordinate(B)--([xshift=1.5cm,yshift=2cm]current page.south west) coordinate (C)--([xshift=-1.5cm,yshift=2cm]current page.south east) coordinate(D)--cycle;
+        \draw ([yshift=0.5cm,xshift=-0.5cm]A)-- ([yshift=0.5cm,xshift=0.5cm]B)--
+        ([yshift=-0.5cm,xshift=0.5cm]B) --([yshift=-0.5cm,xshift=-0.5cm]B)--([yshift=0.5cm,xshift=-0.5cm]C)--([yshift=0.5cm,xshift=0.5cm]C)--([yshift=-0.5cm,xshift=0.5cm]C)-- ([yshift=-0.5cm,xshift=-0.5cm]D)--([yshift=0.5cm,xshift=-0.5cm]D)--([yshift=0.5cm,xshift=0.5cm]D)--([yshift=-0.5cm,xshift=0.5cm]A)--([yshift=-0.5cm,xshift=-0.5cm]A)--([yshift=0.5cm,xshift=-0.5cm]A);
+        \draw ([yshift=-0.3cm,xshift=0.3cm]A)-- ([yshift=-0.3cm,xshift=-0.3cm]B)--
+        ([yshift=0.3cm,xshift=-0.3cm]B) --([yshift=0.3cm,xshift=0.3cm]B)--([yshift=-0.3cm,xshift=0.3cm]C)--([yshift=-0.3cm,xshift=-0.3cm]C)--([yshift=0.3cm,xshift=-0.3cm]C)-- ([yshift=0.3cm,xshift=0.3cm]D)--([yshift=-0.3cm,xshift=0.3cm]D)--([yshift=-0.3cm,xshift=-0.3cm]D)--([yshift=0.3cm,xshift=-0.3cm]A)--([yshift=0.3cm,xshift=0.3cm]A)--([yshift=-0.3cm,xshift=0.3cm]A);
+    \end{tikzpicture}
+}
+
+%------------------------- tocloft settings -------------------------%
+\setlength{\cftbeforesecskip}{0pt} % Space before each section entry
+\setlength{\cftsecnumwidth}{2em}   % Width of the section number
+\setlength{\cftsubsecindent}{3em}  % Indentation for subsections
+\setlength{\cftsubsecnumwidth}{3em}% Width of the subsection number
+\setlength{\cftsubsubsecindent}{5em} % Indentation for subsubsections
+\setlength{\cftsubsubsecnumwidth}{4em} % Width of the subsubsection number
+
+%------------------------- body -------------------------%
+\begin{document}
+
+%-------------------- cover --------------------%
+\pagenumbering{gobble}
+\begin{titlepage}
+    \centering
+    
+    % Draw the cover page border
+    \coverpageborder
+    
+    % University and Department Info
+    \textbf{\large{ĐẠI HỌC QUỐC GIA THÀNH PHỐ HỒ CHÍ MINH}}\\[0.1cm]
+    \textbf{\large{TRƯỜNG ĐẠI HỌC BÁCH KHOA}}\\[0.1cm]
+    \textbf{\large{KHOA KHOA HỌC VÀ KỸ THUẬT MÁY TÍNH}}\\[0.25cm]
+    
+    % Logo Positioning
+    \includegraphics[width=0.5\textwidth]{hcmut.png}\\[0.3cm]
+    
+    % Title and Subtitle
+    \textbf{\LARGE{Real-Time Embedded Systems Project}}\\[0.2cm]
+    \textbf{\Large{INTERNET OF THINGS}}\\[0.6cm]
+    
+    % Group Info
+    \textbf{\large{CLASS: TN01}}\\[0.2cm]
+    \textbf{\large{Lecturer: Lê Trọng Nhân}}
+    \begin{table}[h]
+    \renewcommand{\arraystretch}{1.5}  % Điều chỉnh chiều cao hàng (1.5 lần bình thường)
+    \centering
+    \begin{adjustbox}{max width=\textwidth} % Đảm bảo bảng vừa với chiều rộng trang
+    \begin{tabular}{|c|l|c|c|c|}
+        \hline
+        \textbf{STT} & \multicolumn{1}{c|}{\textbf{Họ và tên}} & \textbf{MSSV} & \textbf{Tên lớp} & \textbf{Tên ngành} \\ \hline
+        1 & Nguyễn Lưu Khánh Trình & 2313638 & TN01 & Kỹ thuật máy tính \\ \hline
+        2 & Trần Minh Trí & 2313626 & TN01 & Kỹ thuật máy tính \\ \hline
+    \end{tabular}
+    \end{adjustbox}
+\end{table}
+    
+    \vspace{4cm} % Adjust space between the table and the advisor section
+   
+    
+    % Date
+    \textbf{\large{THÀNH PHỐ HỒ CHÍ MINH, THÁNG 4 NĂM 2026}}
+\end{titlepage}
+
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+
+%------------------------- re-apply fancy page style -------------------------%
+\pagestyle{fancy}
+
+%------------------------- sections -------------------------%
+
+\renewcommand{\contentsname}{Contents}
+\renewcommand{\listfigurename}{List of Figures}
+\renewcommand{\listtablename}{List of Tables}
+
+\newpage
+\tableofcontents
+
+\newpage
+\setstretch{1.25}
+\renewcommand{\baselinestretch}{1.25}
+
+%=================== BODY CONTENT ===================%
+
+\input{abstract_acknowledgement}
+\input{chapter1_introduction}
+\input{chapter2_background}
+\input{chapter3_implementation}
+\input{chapter4_evaluation}
+\input{chapter5_conclusion}
+\input{references}
+\input{appendix}
+
+\end{document}
+
+
+
+
+
+

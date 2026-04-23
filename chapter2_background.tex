@@ -1,0 +1,174 @@
+\newpage
+\section{System Concept and Background}
+\subsection{Introduction}
+\textit{[Introduce the system concept and why the background matters.]}
+
+\subsection{IoT Platform}
+ESP32 is a 32-bit microcontroller family developed by Espressif Systems as a successor to ESP8266. It integrates Wi-Fi and Bluetooth/BLE connectivity and provides sufficient computational performance for edge IoT applications. In this project, the ESP32-S3 platform is used as the central controller for sensing, local processing, communication, and cloud interaction.
+
+\subsubsection{Key Technical Specifications}
+\begin{itemize}
+	\item \textbf{Processor:} Xtensa/RISC-V class 32-bit architecture (model-dependent), typically operated in the 160--240 MHz range.
+	\item \textbf{Memory:} On-chip SRAM resources with external Flash support (commonly 4--16 MB, depending on board configuration).
+	\item \textbf{Connectivity:} IEEE 802.11 b/g/n Wi-Fi and Bluetooth Low Energy.
+	\item \textbf{Peripheral Interfaces:} GPIO, PWM, ADC, UART, SPI, and I$^2$C.
+	\item \textbf{Power Features:} Support for low-power modes suitable for embedded and battery-aware IoT systems.
+	\item \textbf{Operating Range:} Industrial-grade operating conditions for practical deployment scenarios.
+\end{itemize}
+
+\subsubsection{Rationale for Selecting ESP32}
+The ESP32 platform is selected for the following reasons:
+\begin{enumerate}
+	\item \textbf{Integrated wireless connectivity:} native Wi-Fi support simplifies device-to-cloud communication and local web control.
+	\item \textbf{Balanced performance:} sufficient processing capability to execute sensor pipelines, web services, and lightweight TinyML inference on one device.
+	\item \textbf{Practical memory capacity:} enough resources for buffering sensor data, serving web assets, and running compact inference models.
+	\item \textbf{Strong software ecosystem:} mature support through PlatformIO, Arduino-compatible libraries, and broad community documentation.
+	\item \textbf{Cost-effectiveness:} favorable hardware cost compared to other IoT platforms with similar connectivity features.
+	\item \textbf{Energy efficiency:} suitable for long-running embedded applications and power-constrained scenarios.
+\end{enumerate}
+
+\subsubsection{Project-Relevant Features}
+In this project, the following ESP32 capabilities are directly utilized:
+\begin{itemize}
+	\item \textbf{I$^2$C interface:} communication with digital sensors for temperature and humidity acquisition.
+	\item \textbf{GPIO/PWM:} control of status LEDs, NeoPixel behavior, and other actuators.
+	\item \textbf{Web server support:} local monitoring and control in Access Point mode.
+	\item \textbf{Flash file system support (e.g., LittleFS):} storage of static web resources (HTML/CSS/JS).
+	\item \textbf{TinyML compatibility:} on-device inference for lightweight environmental state analysis.
+\end{itemize}
+
+\subsubsection{Comparison with Alternative Platforms}
+Compared with common alternatives such as Arduino Uno, Arduino MKR WiFi, or Raspberry Pi Pico-class boards, ESP32 provides a stronger balance between computation, native wireless connectivity, software support, and deployment cost. This balance makes ESP32 particularly suitable for an end-to-end IoT project that combines sensing, local intelligence, web interaction, and cloud data publishing.
+
+\subsection{RTOS Background}
+FreeRTOS is a lightweight, open-source real-time operating system (RTOS) kernel designed for resource-constrained embedded systems. It provides a structured abstraction for concurrent execution, event handling, and inter-task synchronization without requiring developers to manually implement complex scheduling logic. Due to its low overhead and mature ecosystem support, FreeRTOS is widely adopted on microcontroller platforms such as ESP32, STM32, and ARM Cortex-M devices.
+
+\subsubsection{Core Concepts}
+\begin{itemize}
+	\item \textbf{Task:} an independent execution unit, typically implemented as an infinite loop with its own stack and runtime state.
+	\item \textbf{Scheduler:} the kernel component that decides which task executes at each instant; FreeRTOS commonly uses preemptive priority-based scheduling.
+	\item \textbf{Queue:} a thread-safe communication mechanism for passing messages or data between tasks.
+	\item \textbf{Semaphore:} a synchronization primitive used for signaling events and controlling access to shared resources.
+	\item \textbf{Mutex:} a specialized locking mechanism for protecting critical shared resources from concurrent access.
+\end{itemize}
+
+\subsubsection{Advantages of FreeRTOS}
+FreeRTOS offers several practical benefits for this project:
+\begin{enumerate}
+	\item \textbf{Multitasking support:} multiple functional components can run concurrently as independent tasks.
+	\item \textbf{Open-source flexibility:} the kernel is freely available and can be adapted to project-specific constraints.
+	\item \textbf{Low resource footprint:} suitable for microcontrollers with limited memory and compute resources.
+	\item \textbf{Modularity and scalability:} queue, semaphore, software timer, and synchronization features can be incrementally integrated.
+	\item \textbf{Strong platform support:} deeply integrated with ESP-IDF and well supported by the embedded systems community.
+	\item \textbf{Industrial reliability:} broadly validated in large-scale commercial embedded deployments.
+\end{enumerate}
+
+\subsubsection{Role of FreeRTOS in This Project}
+In this IoT system, FreeRTOS is used to coordinate multiple time-critical and communication-intensive modules:
+\begin{enumerate}
+	\item \textbf{Concurrent task management:} separate tasks handle web serving, periodic sensor sampling, TinyML inference, and LED/device control.
+	\item \textbf{Data synchronization:} semaphores protect shared sensor data paths, while queues support safe task-to-task data transfer.
+	\item \textbf{Priority-aware response:} web request handling can be assigned higher priority for responsive user interaction; sensing and inference tasks run at controlled medium priorities.
+	\item \textbf{Resource isolation:} each task has dedicated stack allocation, reducing memory interference and improving system stability.
+\end{enumerate}
+
+\subsubsection{Task Architecture Used in the Project}
+The software design follows a layered FreeRTOS task organization:
+\begin{itemize}
+	\item \textbf{Task WebServer (high priority):} handles HTTP requests and local UI interactions.
+	\item \textbf{Task Sensor Reader (medium priority):} acquires periodic temperature and humidity measurements.
+	\item \textbf{Task TinyML (medium priority):} executes on-device inference for state prediction.
+	\item \textbf{Task LED/Device Control:} updates LED/NeoPixel and related actuator outputs.
+	\item \textbf{Task Wi-Fi Manager:} manages connectivity and reconnection logic.
+	\item \textbf{Idle Task (lowest priority):} runs when no application task is ready.
+\end{itemize}
+
+\subsubsection{Comparison with Non-RTOS Firmware Design}
+Without an RTOS, firmware development often relies on interrupt-heavy control flow and manually maintained state machines, which becomes difficult to scale and maintain as system complexity grows. FreeRTOS addresses these limitations by decomposing the application into isolated tasks and delegating scheduling and synchronization to the kernel, thereby improving maintainability, timing predictability, and robustness against race conditions.
+
+\subsection{TinyML Background}
+TinyML (Tiny Machine Learning) focuses on deploying machine learning inference on resource-constrained embedded devices such as microcontrollers and smart sensors. Instead of forwarding raw sensor streams to cloud servers for AI processing, TinyML performs prediction directly at the edge. This edge-centric approach reduces latency, lowers communication energy cost, improves privacy, and enables continued operation under unstable network conditions.
+
+\subsubsection{Core Concepts}
+\begin{itemize}
+	\item \textbf{Inference:} using a pre-trained model to predict new input samples; TinyML primarily targets inference rather than on-device training.
+	\item \textbf{Model quantization:} reducing model precision (e.g., from float32 to int8/int16) to decrease memory usage and improve runtime efficiency.
+	\item \textbf{TensorFlow Lite / TensorFlow Lite Micro:} lightweight runtimes for deploying compact models on embedded and IoT hardware.
+	\item \textbf{Feature extraction:} converting raw sensor readings into meaningful features suitable for model input.
+	\item \textbf{Edge AI:} running AI computation at the data source rather than in remote cloud infrastructure.
+\end{itemize}
+
+\subsubsection{Advantages of TinyML}
+For this project, TinyML provides several practical benefits:
+\begin{enumerate}
+	\item \textbf{Low latency:} predictions are produced locally in near real time.
+	\item \textbf{Energy efficiency:} reduced network transmission lowers power consumption.
+	\item \textbf{Data privacy:} sensitive raw measurements can remain on-device.
+	\item \textbf{Offline capability:} core inference continues even when cloud connectivity is unavailable.
+	\item \textbf{Compact deployment:} optimized models can run within limited memory and compute budgets.
+	\item \textbf{Infrastructure cost reduction:} less dependency on high-capacity cloud inference services.
+\end{enumerate}
+
+\subsubsection{TinyML Development Workflow}
+The deployment pipeline typically follows these steps:
+\begin{enumerate}
+	\item Train a model offline using Python-based ML frameworks and historical datasets.
+	\item Convert the trained model to a lightweight deployment format (e.g., \texttt{.tflite} or equivalent compact representation).
+	\item Apply optimization/quantization to reduce memory footprint and improve execution speed.
+	\item Embed model parameters into firmware (for example as a C header file).
+	\item Deploy to ESP32-S3 and evaluate runtime latency, memory usage, and prediction quality.
+\end{enumerate}
+
+\subsubsection{TinyML Usage in This Project}
+In this IoT system, TinyML is used to classify environmental state from real-time sensor inputs:
+\begin{itemize}
+	\item \textbf{Input features:} temperature ($^\circ$C) and humidity (\%) from the DHT20 sensor.
+	\item \textbf{Output classes:} environmental operating states (e.g., invalid state, standby, cooling required, dehumidification required, humidification required).
+	\item \textbf{Model choice:} Gaussian Naive Bayes (GNB), trained on historical labeled pairs of temperature-humidity samples.
+	\item \textbf{Firmware integration:} model parameters exported to \texttt{naive\_bayes\_model.h} and compiled into the ESP32-S3 application.
+\end{itemize}
+
+To reduce communication overhead, the system can publish compact inference results (state labels) instead of transmitting all raw samples continuously.
+
+\subsubsection{Inference Architecture in the Project}
+The inference path is organized as follows:
+\begin{enumerate}
+	\item Acquire temperature and humidity from DHT20.
+	\item Apply preprocessing/feature formatting.
+	\item Run Gaussian Naive Bayes inference on ESP32-S3.
+	\item Produce the environmental-state classification.
+	\item Publish results to local UI and cloud dashboard.
+\end{enumerate}
+
+\subsubsection{On-Device TinyML vs Cloud ML}
+\begin{center}
+\begin{tabular}{|p{3.1cm}|p{5.2cm}|p{5.2cm}|}
+\hline
+\textbf{Criterion} & \textbf{On-Device TinyML} & \textbf{Cloud ML} \\
+\hline
+Latency & Very low (typically milliseconds) & Higher due to communication and server round-trip \\
+\hline
+Energy usage & Lower communication overhead & Higher network usage for continuous data upload \\
+\hline
+Data privacy & Raw data can remain on-device & Raw data is usually transmitted to remote servers \\
+\hline
+Network independence & Can continue inference offline & Requires stable connectivity for inference \\
+\hline
+Scalability & Limited by device resources & Scales with cloud infrastructure capacity \\
+\hline
+Model update flow & Often requires firmware/model redeployment & Centralized updates are easier on server side \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsubsection{Supporting Tools and Libraries}
+Common tools for TinyML-oriented workflows include TensorFlow Lite, TensorFlow Lite Micro, scikit-learn-based training pipelines, and embedded SDK/library support available in ESP32 ecosystems.
+
+\subsubsection{Practical Challenges}
+Key TinyML constraints in embedded deployment include strict RAM/Flash limits, potential accuracy degradation after aggressive quantization, and more difficult debugging on hardware compared with desktop/cloud environments.
+
+\subsection{CoreIoT Background}
+\textit{[Briefly explain the CoreIoT cloud workflow, data publishing path, and monitoring components.]}
+
+\subsection{Chapter Summary}
+\textit{[Summarize this chapter.]}

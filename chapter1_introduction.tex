@@ -1,0 +1,25 @@
+\newpage
+\section{Introduction}
+\subsection{Project Overview}
+\textit{This project develops an intelligent IoT system based on the ESP32 platform for real-time environmental monitoring and control. The system collects temperature and humidity data from onboard sensors, presents the readings through a web-based interface, and allows users to configure Wi-Fi settings, track device status, and remotely control selected functions. In addition, the project integrates a Machine Learning/TinyML model to analyze sensor data and provide suitable predictions or recommendations according to the observed environmental state. The proposed solution is designed to support automation, improve the user experience, and remain practical for the limited processing and memory capabilities of the ESP32 microcontroller.}
+
+\subsection{Project Tasks and Requirements}
+The implementation is organized into six main tasks:
+\begin{enumerate}
+	\item \textbf{Task 1: Temperature-driven LED blinking} --- control a status LED blinking pattern according to measured temperature levels.
+	\item \textbf{Task 2: Humidity-driven NeoPixel control} --- drive NeoPixel LED color/behavior based on humidity ranges.
+	\item \textbf{Task 3: Temperature and humidity monitoring with LCD display} --- read sensor values continuously and show real-time measurements on an LCD interface.
+	\item \textbf{Task 4: Web server in Access Point mode} --- deploy an onboard ESP32-S3 web server to provide local configuration and monitoring via AP mode.
+	\item \textbf{Task 5: TinyML deployment and accuracy evaluation} --- deploy a TinyML model on-device and assess inference quality through suitable evaluation metrics.
+	\item \textbf{Task 6: Data publishing to CoreIoT cloud server} --- transmit collected data and device states to the CoreIoT cloud backend for remote monitoring.
+\end{enumerate}
+
+All programming, integration, and testing activities are required to be performed on the \textbf{ESP32-S3} platform using the \textbf{PlatformIO} plug-in as the main development environment.
+
+\subsection{Scope and Limitations}
+\textit{[Describe what the report covers and what is outside scope.]}
+
+
+\subsection{Report Outline}
+\textit{[Briefly explain the structure of the remaining chapters.]}
+

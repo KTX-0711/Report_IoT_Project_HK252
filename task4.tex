@@ -1,0 +1,146 @@
+\newpage
+% --- BẮT ĐẦU BÁO CÁO TASK 4 (ĐÃ GIẢM 1 CẤP ĐỀ MỤC) ---
+
+\subsection{Task 4: Explore Union Filesystems (OverlayFS)}
+
+Trong tác vụ này, nhóm nghiên cứu thực hiện khám phá cơ chế hoạt động của OverlayFS trong Docker thông qua việc kiểm tra các lớp (layers), cấu trúc thư mục và cơ chế Copy-on-Write (CoW).
+
+\subsubsection{Thực hiện và Kết quả (Implementation \& Results)}
+
+\paragraph{Bước 1: Kiểm tra Layers của Image và thông tin GraphDriver}
+Đầu tiên, nhóm kiểm tra lịch sử các lớp của image \texttt{ubuntu} và thông tin chi tiết về driver lưu trữ. Kết quả cho thấy image được cấu thành từ các lớp read-only.
+
+\begin{small}
+\begin{verbatim}
+vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker history ubuntu
+IMAGE          CREATED       CREATED BY                                      SIZE      COMMENT
+c3a134f2ace4   7 weeks ago   /bin/sh -c #(nop)  CMD ["/bin/bash"]            0B
+<missing>      7 weeks ago   /bin/sh -c #(nop) ADD file:ddf1aa62235de6657…   78.1MB
+<missing>      7 weeks ago   /bin/sh -c #(nop)  LABEL org.opencontainers.…   0B
+...
+
+vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker image inspect ubuntu
+[
+    {
+        "Id": "sha256:c3a134f2ace4f6d480733efcfef27c60ea8ed48be1cd36f2c17ec0729775b2c8",
+        ...
+        "GraphDriver": {
+            "Data": {
+                "MergedDir": "/var/lib/docker/overlay2/.../merged",
+                "UpperDir": "/var/lib/docker/overlay2/.../diff",
+                "WorkDir": "/var/lib/docker/overlay2/.../work"
+            },
+            "Name": "overlay2"
+        },
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:e8bce0aabd687e9ee90e0bada33884f40b277196f72aac9934357472863a80ae"
+            ]
+        }
+    }
+]
+\end{verbatim}
+\end{small}
+
+\paragraph{Bước 2: Phân tích cấu trúc thư mục OverlayFS}
+Kiểm tra cấu trúc thư mục của một container đang chạy (\texttt{oslab}). Hệ thống hiển thị rõ ràng các thư mục \texttt{LowerDir}, \texttt{UpperDir}, và \texttt{MergedDir}.
+
+\begin{small}
+\begin{verbatim}
+vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker inspect oslab | grep -A 15 "GraphDriver"
+        "GraphDriver": {
+            "Data": {
+                "ID": "f2c62b94ac7aa2f98d188f897f75ec7f03a431e680a844c86bb6a4dd651efeda",
+                "LowerDir": "/var/lib/docker/overlay2/...-init/diff:/var/lib/docker/overlay2/.../diff",
+                "MergedDir": "/var/lib/docker/overlay2/e56dc016f46bad34f33df88a4fd273af9112f94fec2021f54b2aecf0c261851d/merged",
+                "UpperDir": "/var/lib/docker/overlay2/e56dc016f46bad34f33df88a4fd273af9112f94fec2021f54b2aecf0c261851d/diff",
+                "WorkDir": "/var/lib/docker/overlay2/e56dc016f46bad34f33df88a4fd273af9112f94fec2021f54b2aecf0c261851d/work"
+            },
+            "Name": "overlay2"
+        },
+
+// Xem thông tin layers cụ thể
+vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker container inspect oslab --format='{{.GraphDriver.Data.UpperDir}}'
+/var/lib/docker/overlay2/e56dc016f46bad34f33df88a4fd273af9112f94fec2021f54b2aecf0c261851d/diff
+\end{verbatim}
+\end{small}
+
+\paragraph{Bước 3: Kiểm chứng thay đổi file trên Host (UpperDir)}
+Khi tạo một file mới (\texttt{hello\_world.txt}) bên trong container, file này xuất hiện ngay lập tức tại thư mục \texttt{UpperDir} trên máy chủ (Host), chứng minh cơ chế lưu trữ của OverlayFS.
+
+\begin{small}
+\begin{verbatim}
+vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker exec oslab touch /hello_world.txt
+vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ sudo ls -l /var/lib/docker/overlay2/.../diff
+[sudo] password for vinhle:
+total 4
+-rw-r--r-- 1 root root 13 Dec  8 10:32 hello_world.txt
+-rw-r--r-- 1 root root  0 Dec  8 10:23 help_me
+\end{verbatim}
+\end{small}
+
+\paragraph{Bước 4: Thí nghiệm về Hiệu quả lưu trữ và Tốc độ}
+Nhóm tạo nhiều container giống nhau (\texttt{test-1, 2, 3}). Kết quả lệnh \texttt{docker system df} cho thấy dung lượng chiếm dụng của các container này rất nhỏ (0B hoặc vài Bytes) do chia sẻ chung Image gốc. Thời gian khởi tạo container chỉ khoảng 0.5 giây.
+
+\begin{small}
+\begin{verbatim}
+vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ for i in {1..3}; do
+    docker run -d --name test-$i ubuntu sleep infinity
+done
+
+vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker system df
+TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          8         2         933.5MB   933.5MB (99%)
+Containers      11        4         311MB     311MB (99%)
+
+vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ time docker run --rm ubuntu echo "Hello"
+Hello
+real    0m0.508s
+user    0m0.011s
+sys     0m0.022s
+\end{verbatim}
+\end{small}
+
+\paragraph{Bước 5: Thí nghiệm Copy-on-Write (CoW)}
+Thực hiện ghi một file 100MB vào container \texttt{cow-test}. Kết quả kiểm tra dung lượng cho thấy chỉ container này tăng kích thước lên 105MB, trong khi các container khác vẫn giữ nguyên kích thước 0B và không bị ảnh hưởng.
+
+\begin{small}
+\begin{verbatim}
+vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker run -d --name cow-test ubuntu sleep infinity
+vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker exec cow-test bash -c "dd if=/dev/zero of=/largefile bs=1M count=100"
+100+0 records in
+100+0 records out
+104857600 bytes (105 MB, 100 MiB) copied, 0.0675462 s, 1.6 GB/s
+
+vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker system df -v
+Containers space usage:
+CONTAINER ID   IMAGE    COMMAND            SIZE      NAMES
+cb8d8cce43a1   ubuntu   "sleep infinity"   105MB     cow-test
+54360efd0b32   ubuntu   "sleep infinity"   0B        test-3
+4225421813c6   ubuntu   "sleep infinity"   0B        test-2
+
+vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker run -d --name cow-test2 ubuntu sleep infinity
+vinhle@LAPTOP-KC5Q62DH:~/OS/Lab4/TeamWork$ docker exec cow-test2 ls -lh /largefile 2>/dev/null || echo "File not exist"
+File not exist
+\end{verbatim}
+\end{small}
+
+\subsubsection{Thảo luận và Trả lời câu hỏi (Discussion)}
+
+\textbf{Câu 1: Tại sao chỉ có lớp bị sửa đổi được lưu trữ?}
+\begin{itemize}
+    \item Docker sử dụng cơ chế \textbf{Copy-on-Write (CoW)}. Lớp Image gốc luôn ở trạng thái Chỉ-đọc (Read-only). Khi container cần ghi file, nó sao chép file đó lên lớp trên cùng (UpperDir) và sửa đổi tại đó. Do đó, chỉ phần dữ liệu khác biệt mới chiếm dụng dung lượng đĩa.
+\end{itemize}
+
+\textbf{Câu 2: OverlayFS cho phép tái sử dụng image như thế nào?}
+\begin{itemize}
+    \item Như đã thấy trong bảng số liệu, các container \texttt{test-1, 2, 3} đều có dung lượng 0B. Chúng cùng chia sẻ các con trỏ trỏ về Image \texttt{ubuntu} gốc. Hệ điều hành không cần sao chép các tệp tin hệ thống cho mỗi container, giúp tiết kiệm không gian đáng kể.
+\end{itemize}
+
+\textbf{Câu 3: Hệ thống tệp phân lớp cải thiện hiệu quả ảo hóa ra sao?}
+\begin{itemize}
+    \item \textbf{Tiết kiệm lưu trữ:} Tránh dư thừa dữ liệu (Deduplication).
+    \item \textbf{Tăng tốc độ khởi tạo:} Không cần sao chép toàn bộ OS khi khởi chạy (0.5s so với hàng phút của VM).
+    \item \textbf{Cô lập an toàn:} Thay đổi ở container này (như file 100MB trong \texttt{cow-test}) hoàn toàn không ảnh hưởng đến container khác (\texttt{cow-test2}).
+\end{itemize}

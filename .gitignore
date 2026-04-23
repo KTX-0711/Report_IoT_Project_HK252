@@ -1,0 +1,49 @@
+# LaTeX intermediate/build files
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.ilg
+*.ind
+*.lof
+*.log
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.xdv
+*.nav
+*.snm
+*.vrb
+
+# Glossaries / acronyms
+*.acn
+*.acr
+*.alg
+*.glg
+*.glo
+*.gls
+*.ist
+*.xdy
+
+# Bibliography tools
+*.dvi
+*.ps
+
+# Build folders
+_build/
+out/
+build/
+
+# Editor / OS temp files
+*~
+*.swp
+*.swo
+.DS_Store
+
+# Windows Zone Identifier artifacts (present in this repo)
+*:Zone.Identifier*
+*:Zone - Copy.Identifier*

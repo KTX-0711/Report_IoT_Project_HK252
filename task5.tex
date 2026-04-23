@@ -1,0 +1,122 @@
+\newpage
+\subsection{Task 5: Compare Docker Base Images (OS-Level Differences)}
+
+Trong phần này, chúng ta thực hiện so sánh chi tiết ba loại Docker base image: \textbf{Ubuntu}, \textbf{Debian Slim}, và \textbf{Alpine Linux}. Mục tiêu là phân tích sự đánh đổi (trade-off) giữa kích thước image, khả năng tương thích phần mềm, sự phong phú của các công cụ tiện ích (utilities), và hành vi giao tiếp với kernel thông qua thư viện C chuẩn (libc).
+
+\subsubsection{Phương pháp thực hiện}
+
+Để đánh giá khách quan các khác biệt ở cấp độ hệ điều hành, chúng tôi đã xây dựng cùng một ứng dụng đơn giản (\texttt{hello.c}) trên ba môi trường Docker khác nhau: \textbf{Ubuntu}, \textbf{Debian Slim} và \textbf{Alpine Linux}. Quy trình kiểm thử được chia thành hai giai đoạn chính: biên dịch và Phân tích hành vi (Build and Trace) và thu thập dữ liệu tự động (Automated Data Collection).
+
+\begin{enumerate}
+    \item \textbf{Build và Trace (Biên dịch và Theo dõi System Calls):} Quá trình này tạo ra các image chứa ứng dụng đã biên dịch và theo dõi cách ứng dụng giao tiếp với nhân (kernel) của container.
+    \item \textbf{Phân tích tự động (Automated Analysis):} Sử dụng script shell để lập bảng đo lường các yếu tố định lượng như kích thước image, số lượng tiện ích hệ thống, và cường độ sử dụng system call.
+\end{enumerate}
+
+\paragraph{Lệnh Build và System Call Tracing}
+
+Các lệnh sau được sử dụng để xây dựng các image ứng dụng tương ứng với từng base image, sau đó sử dụng công cụ \texttt{strace} để ghi lại tất cả các system call (lời gọi hệ thống) mà ứng dụng \texttt{./app} thực hiện từ lúc khởi chạy đến khi kết thúc.
+
+\begin{lstlisting}[frame=single]
+$ docker build -t app-ubuntu -f Dockerfile.ubuntu .
+$ docker build -t app-debian -f Dockerfile.debian .
+$ docker build -t app-alpine -f Dockerfile.alpine .
+\end{lstlisting}
+
+\textbf{Mô tả:} Các lệnh \texttt{docker build} này tạo ra ba image riêng biệt (\texttt{app-ubuntu}, \texttt{app-debian}, \texttt{app-alpine}), mỗi image được xây dựng dựa trên một base OS khác nhau và chứa cùng một ứng dụng.
+
+\begin{lstlisting}[frame=single]
+$ docker run --rm app-ubuntu strace ./app
+$ docker run --rm app-debian strace ./app
+$ docker run --rm app-alpine strace ./app
+\end{lstlisting}
+
+\textbf{Mô tả:} Lệnh \texttt{docker run} thực thi image đã xây dựng. Cờ \texttt{--rm} đảm bảo container tự động bị xóa sau khi dừng. \textbf{\texttt{strace ./app}} là phần quan trọng nhất: \texttt{strace} được đặt làm entrypoint, nó sẽ chặn và ghi lại toàn bộ các lời gọi hệ thống (như \texttt{open}, \texttt{write}, \texttt{read}, \texttt{execve}, v.v.) mà ứng dụng \texttt{./app} tạo ra. Việc so sánh log \texttt{strace} giữa các hệ điều hành sẽ tiết lộ sự khác biệt trong cách các thư viện C chuẩn (\texttt{glibc} và \texttt{musl}) xử lý I/O và khởi tạo môi trường.
+
+\paragraph{Script Thu thập Dữ liệu Tự động}
+
+Script shell sau đây được sử dụng để tự động đo lường và so sánh các thông số kỹ thuật, đảm bảo tính nhất quán trong việc thu thập dữ liệu cho bảng so sánh.
+
+
+\begin{lstlisting}[frame=single]
+CheckList=(
+    "app-alpine:alpine:latest"
+    "app-ubuntu:ubuntu:latest"
+    "app-debian:debian:stable-slim"
+)
+
+printf "\n%-15s | %-10s | %-10s | %-8s | %-8s | %-12s\n" "IMAGE NAME" "APP SIZE" "BASE SIZE" "LIBC" "UTILS" "STRACE (loc)"
+echo "----------------+------------+------------+----------+----------+--------------"
+
+for item in "${CheckList[@]}"; do
+    IMG_NAME="${item%%:*}"
+    BASE_NAME="${item#*:}"
+
+    APP_SIZE=$(docker images --format "{{.Size}}" "$IMG_NAME" | head -n 1)
+    BASE_SIZE=$(docker images --format "{{.Size}}" "$BASE_NAME" | head -n 1)
+    
+    if [ -z "$BASE_SIZE" ]; then BASE_SIZE="N/A"; fi
+
+    if [[ "$IMG_NAME" == *"alpine"* ]]; then
+        LIBC="musl"
+    else
+        LIBC="glibc"
+    fi
+
+    UTILS_COUNT=$(docker run --rm --entrypoint /bin/sh "$IMG_NAME" -c "ls /bin /usr/bin /sbin /usr/sbin 2>/dev/null | wc -l")
+    STRACE_LINES=$(docker run --rm "$IMG_NAME" strace ./app 2>&1 | wc -l)
+
+    printf "%-15s | %-10s | %-10s | %-8s | %-8s | %-12s\n" "$IMG_NAME" "$APP_SIZE" "$BASE_SIZE" "$LIBC" "$UTILS_COUNT" "$STRACE_LINES"
+done
+echo ""
+\end{lstlisting}
+
+\textbf{Mô tả chi tiết các tham số đo lường:}
+\begin{itemize}
+    \item \textbf{APP SIZE \& BASE SIZE:} Đo lường kích thước chính xác của image ứng dụng và image nền tảng. Đây là cơ sở định lượng cho sự đánh đổi về dung lượng lưu trữ.
+    \item \textbf{LIBC (C Library):} Xác định thư viện C chuẩn được sử dụng (\textbf{glibc} cho hệ thống dựa trên Debian/Ubuntu, \textbf{musl} cho Alpine). Đây là yếu tố quyết định khả năng tương thích nhị phân (binary compatibility). 
+    \item \textbf{UTILS (Utility Count):} Đếm tổng số lượng file thực thi trong các thư mục hệ thống tiêu chuẩn (\texttt{/bin}, \texttt{/usr/bin}, v.v.). Con số này phản ánh mức độ "tối giản" hoặc "đầy đủ" của môi trường, ảnh hưởng trực tiếp đến khả năng gỡ lỗi (debugging) trong container.
+    \item \textbf{STRACE (loc):} Đếm số dòng output của \texttt{strace}. Đây là một chỉ số định lượng về số lượng system call mà ứng dụng thực hiện. Sự khác biệt về số lượng sẽ làm rõ cơ chế quản lý tài nguyên và buffering của \texttt{glibc} so với \texttt{musl}.
+\end{itemize}
+
+\subsubsection{Kết quả thực nghiệm }
+
+Dựa trên đầu ra của khối lệnh Bash tự động hóa, chúng tôi đã thu thập thành công các thông số định lượng quan trọng cho từng image. Bảng số liệu so sánh dưới đây (Hình \ref{fig:docker-comparison}) tổng hợp các chỉ số được đo lường, làm cơ sở cho việc phân tích chuyên sâu các sự khác biệt ở cấp độ kiến trúc.
+
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Task5.png}
+\caption{Hình ảnh bảng so sánh chi tiết các chỉ số kỹ thuật giữa ba Docker Image: Kích thước, Libc, Tiện ích và Cường độ System Call.}
+\label{fig:docker-comparison}
+\end{figure}
+
+\textit{Lưu ý: Các giá trị số liệu trong bảng (Kích thước theo MB, số lượng Utilities, và số dòng Strace) là kết quả trực tiếp từ môi trường kiểm thử đã thiết lập. Các thông số này phản ánh mối tương quan chặt chẽ giữa sự lựa chọn Libc (\textbf{glibc} vs. \textbf{musl}) và cấu trúc tổng thể của Image. Cụ thể, số lượng System Call (\textbf{STRACE loc}) cung cấp dữ liệu định lượng về sự khác biệt trong cơ chế hoạt động của các thư viện chuẩn C khi ứng dụng khởi chạy.}
+
+\paragraph{Trả lời câu hỏi và Phân tích chuyên sâu}
+
+Dựa trên các kết quả thực nghiệm và sự khác biệt về cấu trúc giữa ba loại image, chúng tôi đưa ra các phân tích giải đáp cho các câu hỏi nghiên cứu của Task 5.
+
+\paragraph{Tại sao các image dựa trên Alpine thường gặp vấn đề tương thích phần mềm?}
+
+Nguyên nhân cốt lõi nằm ở sự khác biệt của thư viện chuẩn C (\textbf{Libc}).
+\begin{itemize}
+    \item \textbf{Sự khác biệt về ABI (Application Binary Interface):} Alpine Linux sử dụng \textbf{musl libc}, trong khi hầu hết các bản phân phối Linux phổ biến khác (như Ubuntu, Debian, CentOS) sử dụng \textbf{glibc} (GNU C Library). Các phần mềm đóng gói sẵn (pre-compiled binaries) hoặc các thư viện Python (wheels) thường được biên dịch liên kết động với \texttt{glibc}. Khi chạy các ứng dụng này trên Alpine, hệ thống sẽ không tìm thấy các thư viện liên kết cần thiết hoặc gặp lỗi do định nghĩa hàm trong \texttt{musl} khác với \texttt{glibc}.
+    \item \textbf{Thiếu hụt các tiện ích mặc định:} Để giữ kích thước nhỏ, Alpine lược bỏ nhiều công cụ và thư viện bổ trợ mà các ứng dụng lớn có thể ngầm định là "đương nhiên phải có" trên hệ thống, dẫn đến lỗi runtime nếu không được cài đặt thủ công.
+\end{itemize}
+
+\paragraph{Sự khác biệt của Libc ảnh hưởng như thế nào đến System Calls?}
+
+Kết quả từ công cụ \textbf{strace} cho thấy sự khác biệt rõ rệt trong cách ứng dụng giao tiếp với Kernel:
+\begin{itemize}
+    \item \textbf{Glibc (Ubuntu/Debian):} Có xu hướng tạo ra số lượng system calls lớn hơn nhiều (như đã thấy trong bảng kết quả). Nguyên nhân là do \texttt{glibc} thực hiện cơ chế khởi tạo phức tạp (initialization), tải cấu hình locale, và sử dụng bộ đệm (buffering) ở tầng người dùng (user-space) trước khi thực sự gọi xuống kernel. Điều này tối ưu hóa băng thông cho các ứng dụng lớn nhưng tạo ra độ trễ khởi động (overhead) cho các ứng dụng nhỏ.
+    \item \textbf{Musl (Alpine):} Được thiết kế tối giản, \texttt{musl} thường ánh xạ trực tiếp các hàm thư viện C sang system calls của kernel (1-to-1 mapping) mà không qua nhiều lớp trung gian. Do đó, log \texttt{strace} trên Alpine thường ngắn gọn, sạch sẽ và sát với hoạt động thực tế của kernel hơn.
+\end{itemize}
+
+\paragraph{Tại sao Ubuntu tạo ra image kích thước lớn nhưng lại ít lỗi tương thích hơn?}
+
+Đây là sự đánh đổi kinh điển giữa "Kích thước" và "Tính tiện dụng" (Trade-off):
+\begin{itemize}
+    \item \textbf{Kích thước lớn:} Ubuntu đi theo triết lý "Batteries Included" (Pin đi kèm). Một Base Image Ubuntu chứa sẵn trình quản lý gói đầy đủ (\texttt{apt}), \texttt{systemd}, các chứng chỉ SSL, và hàng loạt thư viện bổ trợ trong \texttt{/usr/lib}. Điều này làm tăng kích thước image lên hàng chục MB so với Alpine.
+    \item \textbf{Ít lỗi tương thích:} Nhờ sử dụng \textbf{glibc} (chuẩn công nghiệp) và bao gồm sẵn đầy đủ các dependency phổ biến, Ubuntu đảm bảo môi trường chạy ổn định cho hầu hết mọi phần mềm. Lập trình viên không cần mất thời gian biên dịch lại mã nguồn (compile from source) hay xử lý các lỗi thiếu thư viện liên kết động như khi làm việc với Alpine.
+\end{itemize}
