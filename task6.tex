@@ -1,0 +1,18 @@
+
+\subsubsection{ Nguyên lý hoạt động}
+Tác vụ "CoreIoT" đóng vai trò là cầu nối giao tiếp hai chiều (Bidirectional Communication) giữa biên thiết bị (ESP32) và nền tảng đám mây (Cloud/ThingsBoard) thông qua giao thức MQTT ở port 1883. Tác vụ này thực hiện hai nhiệm vụ cốt lõi: báo cáo dữ liệu định kỳ và lắng nghe, thực thi các lệnh gọi hàm từ xa (RPC - Remote Procedure Call) từ người dùng.
+
+\begin{itemize}
+    \item \textbf{Quản lý kết nối không xung đột:} Để tránh hiện tượng "tranh chấp" module Wi-Fi với Web Server gây treo hệ thống, Task CoreIoT không tự gọi hàm \texttt{WiFi.begin()}. Thay vào đó, nó liên tục giám sát cờ \texttt{isWifiConnected} do \texttt{main\_server\_task} cấp phát. Nếu mất Wi-Fi, tác vụ tự động chuyển sang trạng thái chờ 2000ms; chỉ khi có mạng, quá trình kết nối MQTT (\texttt{reconnect}) mới được phép kích hoạt.
+    \item \textbf{Đồng bộ:} Khi duy trì kết nối MQTT ổn định, cứ mỗi 10.000ms (10 giây), hệ thống sẽ đóng gói các thông số môi trường hiện hành (\texttt{glob\_temperature}, \texttt{glob\_humidity}) và cấu hình ngưỡng cảnh báo (\texttt{glob\_temp\_threshold}) thành chuỗi JSON. Chuỗi này được gửi lên topic \texttt{v1/devices/me/telemetry} để hiển thị lên Dashboard của hệ thống CoreIoT.
+    \item \textbf{Thực thi lệnh điều khiển RPC (RPC Callback):} Hệ thống đăng ký (subscribe) lắng nghe tại topic \texttt{v1/devices/me/rpc/request/+}. Khi có lệnh điều khiển từ Dashboard (VD: kéo Slider thay đổi ngưỡng), hàm \texttt{callback} sẽ được ngắt để gọi. Thư viện \texttt{ArduinoJson} phân tích gói tin, nhận diện phương thức \texttt{"setThre"} và ngay lập tức trích xuất tham số \texttt{params} để cập nhật đè lên biến \texttt{glob\_temp\_threshold}. Nhờ đó, thay đổi từ Cloud lập tức được phản ánh xuống giới hạn cảnh báo của màn hình LCD ở biên thiết bị.
+\end{itemize}
+
+
+\subsubsection{Sơ đồ máy trạng thái (FSM)}
+
+\begin{figure}[H]
+\centering
+    \includegraphics[width=1\linewidth]{picture/task_6_fsm.png}
+ \caption{Task 6 FSM}
+\end{figure}
