@@ -1,0 +1,25 @@
+\subsection{Cơ sở về CoreIoT}
+
+\subsubsection{Luồng làm việc trên đám mây và Đường truyền dữ liệu}
+CoreIoT là nền tảng quản lý IoT thời gian thực. Hệ thống sử dụng MQTT - giao thức truyền thông Publish/Subscribe hạng nhẹ, đặc biệt tối ưu cho vi điều khiển ESP32. Luồng dữ liệu hai chiều được định tuyến như sau:
+
+\begin{itemize}
+    \item \textbf{Chiều lên (Telemetry):} Trạng thái môi trường và thông số ngưỡng được đóng gói thành định dạng JSON, xuất bản (Publish) định kỳ lên đám mây tại topic \texttt{v1/devices/me/telemetry}.
+    \item \textbf{Chiều xuống (RPC Control):} Đám mây đóng vai trò Broker điều hướng lệnh điều khiển. ESP32 đăng ký lắng nghe (Subscribe) tại topic \texttt{v1/devices/me/rpc/request/+} để bắt sự kiện từ người dùng và phản hồi xuống phần cứng.
+\end{itemize}
+
+\subsubsection{Các thành phần giám sát}
+Không gian điều khiển của hệ thống được tích hợp trên Dashboard thông qua hai nhóm thành phần chính:
+\begin{itemize}
+    \item \textbf{Thành phần hiển thị:} Gồm Thẻ số (Digital Cards) và Biểu đồ đường (Line Charts) để giám sát và lưu trữ chuỗi dữ liệu (time-series) của cảm biến.
+    \item \textbf{Thành phần điều khiển:} Gồm thanh trượt (Slider) và công tắc (Switch) liên kết với các phương thức RPC (\texttt{setThre}, \texttt{setStateLED}). Điều này cho phép thay đổi logic điều khiển trực tiếp trên nền tảng Web.
+\end{itemize}
+
+
+\subsection{Tóm tắt chương}
+Chương này đã trình bày quá trình thiết kế và triển khai phần mềm cho hệ thống IoT. Nhờ ứng dụng hệ điều hành FreeRTOS, ESP32 đã vận hành trên kiến trúc đa nhiệm gồm: module thu thập dữ liệu (DHT20, LCD), cảnh báo trực quan (LED, NeoPixel), Web Server thiết lập mạng và giao tiếp đám mây CoreIoT qua MQTT. 
+
+
+
+
+
