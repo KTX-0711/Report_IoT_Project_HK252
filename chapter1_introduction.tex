@@ -1,25 +1,25 @@
 \newpage
-\section{Introduction}
-\subsection{Project Overview}
-\textit{This project develops an intelligent IoT system based on the ESP32 platform for real-time environmental monitoring and control. The system collects temperature and humidity data from onboard sensors, presents the readings through a web-based interface, and allows users to configure Wi-Fi settings, track device status, and remotely control selected functions. In addition, the project integrates a Machine Learning/TinyML model to analyze sensor data and provide suitable predictions or recommendations according to the observed environmental state. The proposed solution is designed to support automation, improve the user experience, and remain practical for the limited processing and memory capabilities of the ESP32 microcontroller.}
+\section{Giới thiệu}
+\subsection{Tổng quan đề tài}
+	extit{Đồ án này xây dựng một hệ thống IoT thông minh dựa trên nền tảng ESP32 để giám sát và điều khiển môi trường theo thời gian thực. Hệ thống thu thập dữ liệu nhiệt độ và độ ẩm từ các cảm biến tích hợp, hiển thị kết quả qua giao diện web, đồng thời cho phép người dùng cấu hình Wi-Fi, theo dõi trạng thái thiết bị và điều khiển từ xa một số chức năng đã chọn. Bên cạnh đó, đồ án tích hợp mô hình Machine Learning/TinyML để phân tích dữ liệu cảm biến và đưa ra dự đoán hoặc khuyến nghị phù hợp với trạng thái môi trường quan sát được. Giải pháp đề xuất hướng đến tự động hóa, cải thiện trải nghiệm người dùng và vẫn phù hợp với giới hạn tài nguyên xử lý và bộ nhớ của vi điều khiển ESP32.}
 
-\subsection{Project Tasks and Requirements}
-The implementation is organized into six main tasks:
+\subsection{Các nhiệm vụ và yêu cầu của đồ án}
+Phần triển khai được tổ chức thành sáu nhiệm vụ chính:
 \begin{enumerate}
-	\item \textbf{Task 1: Temperature-driven LED blinking} --- control a status LED blinking pattern according to measured temperature levels.
-	\item \textbf{Task 2: Humidity-driven NeoPixel control} --- drive NeoPixel LED color/behavior based on humidity ranges.
-	\item \textbf{Task 3: Temperature and humidity monitoring with LCD display} --- read sensor values continuously and show real-time measurements on an LCD interface.
-	\item \textbf{Task 4: Web server in Access Point mode} --- deploy an onboard ESP32-S3 web server to provide local configuration and monitoring via AP mode.
-	\item \textbf{Task 5: TinyML deployment and accuracy evaluation} --- deploy a TinyML model on-device and assess inference quality through suitable evaluation metrics.
-	\item \textbf{Task 6: Data publishing to CoreIoT cloud server} --- transmit collected data and device states to the CoreIoT cloud backend for remote monitoring.
+	\item \textbf{Nhiệm vụ 1: Nhấp nháy LED theo nhiệt độ} --- điều khiển LED trạng thái nhấp nháy dựa trên các mức nhiệt độ đo được.
+	\item \textbf{Nhiệm vụ 2: Điều khiển NeoPixel theo độ ẩm} --- thay đổi màu sắc/hành vi của NeoPixel dựa trên các khoảng độ ẩm.
+	\item \textbf{Nhiệm vụ 3: Giám sát nhiệt độ và độ ẩm với LCD} --- đọc dữ liệu cảm biến liên tục và hiển thị kết quả thời gian thực trên giao diện LCD.
+	\item \textbf{Nhiệm vụ 4: Máy chủ web ở chế độ Access Point} --- triển khai máy chủ web trên ESP32-S3 để cung cấp chức năng cấu hình và giám sát cục bộ qua chế độ AP.
+	\item \textbf{Nhiệm vụ 5: Triển khai TinyML và đánh giá độ chính xác} --- đưa mô hình TinyML lên thiết bị và đánh giá chất lượng suy luận bằng các thước đo phù hợp.
+	\item \textbf{Nhiệm vụ 6: Gửi dữ liệu lên máy chủ đám mây CoreIoT} --- truyền dữ liệu thu thập được và trạng thái thiết bị đến backend CoreIoT để giám sát từ xa.
 \end{enumerate}
 
-All programming, integration, and testing activities are required to be performed on the \textbf{ESP32-S3} platform using the \textbf{PlatformIO} plug-in as the main development environment.
+Toàn bộ hoạt động lập trình, tích hợp và kiểm thử được thực hiện trên nền tảng \textbf{ESP32-S3} với \textbf{PlatformIO} làm môi trường phát triển chính.
 
-\subsection{Scope and Limitations}
-\textit{[Describe what the report covers and what is outside scope.]}
+\subsection{Phạm vi và giới hạn}
+	extit{[Mô tả những nội dung mà báo cáo bao quát và những phần nằm ngoài phạm vi.]}
 
 
-\subsection{Report Outline}
-\textit{[Briefly explain the structure of the remaining chapters.]}
+\subsection{Bố cục báo cáo}
+	extit{[Trình bày ngắn gọn cấu trúc các chương còn lại của báo cáo.]}
 

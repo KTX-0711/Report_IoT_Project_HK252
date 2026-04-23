@@ -1,12 +1,12 @@
 \newpage
-\section{System Concept and Background}
-\subsection{Introduction}
-\textit{[Introduce the system concept and why the background matters.]}
+\section{Khái niệm hệ thống và cơ sở lý thuyết}
+\subsection{Giới thiệu}
+\textit{[Giới thiệu khái niệm hệ thống và lý do cần trình bày phần cơ sở lý thuyết.]}
 
-\subsection{IoT Platform}
-ESP32 is a 32-bit microcontroller family developed by Espressif Systems as a successor to ESP8266. It integrates Wi-Fi and Bluetooth/BLE connectivity and provides sufficient computational performance for edge IoT applications. In this project, the ESP32-S3 platform is used as the central controller for sensing, local processing, communication, and cloud interaction.
+\subsection{Nền tảng IoT}
+ESP32 là họ vi điều khiển 32-bit do Espressif Systems phát triển, kế thừa từ ESP8266. Nền tảng này tích hợp kết nối Wi-Fi và Bluetooth/BLE, đồng thời cung cấp hiệu năng xử lý đủ tốt cho các ứng dụng IoT biên. Trong đồ án này, ESP32-S3 được dùng làm bộ điều khiển trung tâm cho các tác vụ cảm biến, xử lý cục bộ, truyền thông và tương tác với đám mây.
 
-\subsubsection{Key Technical Specifications}
+\subsubsection{Thông số kỹ thuật chính}
 \begin{itemize}
 	\item \textbf{Processor:} Xtensa/RISC-V class 32-bit architecture (model-dependent), typically operated in the 160--240 MHz range.
 	\item \textbf{Memory:} On-chip SRAM resources with external Flash support (commonly 4--16 MB, depending on board configuration).
@@ -16,8 +16,8 @@ ESP32 is a 32-bit microcontroller family developed by Espressif Systems as a suc
 	\item \textbf{Operating Range:} Industrial-grade operating conditions for practical deployment scenarios.
 \end{itemize}
 
-\subsubsection{Rationale for Selecting ESP32}
-The ESP32 platform is selected for the following reasons:
+\subsubsection{Lý do lựa chọn ESP32}
+Nền tảng ESP32 được lựa chọn vì các lý do sau:
 \begin{enumerate}
 	\item \textbf{Integrated wireless connectivity:} native Wi-Fi support simplifies device-to-cloud communication and local web control.
 	\item \textbf{Balanced performance:} sufficient processing capability to execute sensor pipelines, web services, and lightweight TinyML inference on one device.
@@ -27,8 +27,8 @@ The ESP32 platform is selected for the following reasons:
 	\item \textbf{Energy efficiency:} suitable for long-running embedded applications and power-constrained scenarios.
 \end{enumerate}
 
-\subsubsection{Project-Relevant Features}
-In this project, the following ESP32 capabilities are directly utilized:
+\subsubsection{Các tính năng liên quan đến đồ án}
+Trong đồ án này, các khả năng sau của ESP32 được sử dụng trực tiếp:
 \begin{itemize}
 	\item \textbf{I$^2$C interface:} communication with digital sensors for temperature and humidity acquisition.
 	\item \textbf{GPIO/PWM:} control of status LEDs, NeoPixel behavior, and other actuators.
@@ -37,13 +37,13 @@ In this project, the following ESP32 capabilities are directly utilized:
 	\item \textbf{TinyML compatibility:} on-device inference for lightweight environmental state analysis.
 \end{itemize}
 
-\subsubsection{Comparison with Alternative Platforms}
-Compared with common alternatives such as Arduino Uno, Arduino MKR WiFi, or Raspberry Pi Pico-class boards, ESP32 provides a stronger balance between computation, native wireless connectivity, software support, and deployment cost. This balance makes ESP32 particularly suitable for an end-to-end IoT project that combines sensing, local intelligence, web interaction, and cloud data publishing.
+\subsubsection{So sánh với các nền tảng thay thế}
+So với các lựa chọn phổ biến như Arduino Uno, Arduino MKR WiFi hoặc các board thuộc họ Raspberry Pi Pico, ESP32 cân bằng tốt hơn giữa năng lực tính toán, kết nối không dây tích hợp, hỗ trợ phần mềm và chi phí triển khai. Nhờ đó, ESP32 đặc biệt phù hợp với một đồ án IoT toàn diện, kết hợp cảm biến, trí tuệ cục bộ, tương tác web và gửi dữ liệu lên đám mây.
 
-\subsection{RTOS Background}
-FreeRTOS is a lightweight, open-source real-time operating system (RTOS) kernel designed for resource-constrained embedded systems. It provides a structured abstraction for concurrent execution, event handling, and inter-task synchronization without requiring developers to manually implement complex scheduling logic. Due to its low overhead and mature ecosystem support, FreeRTOS is widely adopted on microcontroller platforms such as ESP32, STM32, and ARM Cortex-M devices.
+\subsection{Cơ sở về RTOS}
+FreeRTOS là một nhân hệ điều hành thời gian thực (RTOS) gọn nhẹ, mã nguồn mở, được thiết kế cho các hệ thống nhúng có tài nguyên hạn chế. Hệ điều hành này cung cấp một lớp trừu tượng có cấu trúc cho thực thi đồng thời, xử lý sự kiện và đồng bộ giữa các tác vụ mà không yêu cầu lập trình viên phải tự xây dựng cơ chế lập lịch phức tạp. Nhờ chi phí tài nguyên thấp và hệ sinh thái hỗ trợ trưởng thành, FreeRTOS được sử dụng rộng rãi trên các nền tảng vi điều khiển như ESP32, STM32 và ARM Cortex-M.
 
-\subsubsection{Core Concepts}
+\subsubsection{Khái niệm cốt lõi}
 \begin{itemize}
 	\item \textbf{Task:} an independent execution unit, typically implemented as an infinite loop with its own stack and runtime state.
 	\item \textbf{Scheduler:} the kernel component that decides which task executes at each instant; FreeRTOS commonly uses preemptive priority-based scheduling.
@@ -52,8 +52,8 @@ FreeRTOS is a lightweight, open-source real-time operating system (RTOS) kernel 
 	\item \textbf{Mutex:} a specialized locking mechanism for protecting critical shared resources from concurrent access.
 \end{itemize}
 
-\subsubsection{Advantages of FreeRTOS}
-FreeRTOS offers several practical benefits for this project:
+\subsubsection{Ưu điểm của FreeRTOS}
+FreeRTOS mang lại nhiều lợi ích thực tiễn cho đồ án này:
 \begin{enumerate}
 	\item \textbf{Multitasking support:} multiple functional components can run concurrently as independent tasks.
 	\item \textbf{Open-source flexibility:} the kernel is freely available and can be adapted to project-specific constraints.
@@ -63,8 +63,8 @@ FreeRTOS offers several practical benefits for this project:
 	\item \textbf{Industrial reliability:} broadly validated in large-scale commercial embedded deployments.
 \end{enumerate}
 
-\subsubsection{Role of FreeRTOS in This Project}
-In this IoT system, FreeRTOS is used to coordinate multiple time-critical and communication-intensive modules:
+\subsubsection{Vai trò của FreeRTOS trong đồ án}
+Trong hệ thống IoT này, FreeRTOS được dùng để điều phối nhiều mô-đun có yêu cầu thời gian và truyền thông cao:
 \begin{enumerate}
 	\item \textbf{Concurrent task management:} separate tasks handle web serving, periodic sensor sampling, TinyML inference, and LED/device control.
 	\item \textbf{Data synchronization:} semaphores protect shared sensor data paths, while queues support safe task-to-task data transfer.
@@ -72,8 +72,8 @@ In this IoT system, FreeRTOS is used to coordinate multiple time-critical and co
 	\item \textbf{Resource isolation:} each task has dedicated stack allocation, reducing memory interference and improving system stability.
 \end{enumerate}
 
-\subsubsection{Task Architecture Used in the Project}
-The software design follows a layered FreeRTOS task organization:
+\subsubsection{Kiến trúc tác vụ sử dụng trong đồ án}
+Thiết kế phần mềm tuân theo mô hình tổ chức tác vụ nhiều lớp của FreeRTOS:
 \begin{itemize}
 	\item \textbf{Task WebServer (high priority):} handles HTTP requests and local UI interactions.
 	\item \textbf{Task Sensor Reader (medium priority):} acquires periodic temperature and humidity measurements.
@@ -83,13 +83,13 @@ The software design follows a layered FreeRTOS task organization:
 	\item \textbf{Idle Task (lowest priority):} runs when no application task is ready.
 \end{itemize}
 
-\subsubsection{Comparison with Non-RTOS Firmware Design}
-Without an RTOS, firmware development often relies on interrupt-heavy control flow and manually maintained state machines, which becomes difficult to scale and maintain as system complexity grows. FreeRTOS addresses these limitations by decomposing the application into isolated tasks and delegating scheduling and synchronization to the kernel, thereby improving maintainability, timing predictability, and robustness against race conditions.
+\subsubsection{So sánh với thiết kế firmware không dùng RTOS}
+Nếu không có RTOS, việc phát triển firmware thường phải dựa nhiều vào cơ chế ngắt và các máy trạng thái được quản lý thủ công, khiến hệ thống khó mở rộng và bảo trì khi độ phức tạp tăng lên. FreeRTOS khắc phục các hạn chế này bằng cách phân rã ứng dụng thành các tác vụ độc lập và giao việc lập lịch, đồng bộ cho nhân hệ điều hành, từ đó cải thiện khả năng bảo trì, tính dự đoán về thời gian và độ ổn định trước lỗi tranh chấp tài nguyên.
 
-\subsection{TinyML Background}
-TinyML (Tiny Machine Learning) focuses on deploying machine learning inference on resource-constrained embedded devices such as microcontrollers and smart sensors. Instead of forwarding raw sensor streams to cloud servers for AI processing, TinyML performs prediction directly at the edge. This edge-centric approach reduces latency, lowers communication energy cost, improves privacy, and enables continued operation under unstable network conditions.
+\subsection{Cơ sở về TinyML}
+TinyML (Tiny Machine Learning) tập trung vào việc triển khai suy luận học máy trên các thiết bị nhúng có tài nguyên hạn chế như vi điều khiển và cảm biến thông minh. Thay vì chuyển luồng dữ liệu cảm biến thô lên máy chủ đám mây để xử lý AI, TinyML thực hiện dự đoán trực tiếp ở biên. Cách tiếp cận này giúp giảm độ trễ, giảm chi phí năng lượng cho truyền thông, tăng cường riêng tư và cho phép hệ thống tiếp tục hoạt động ngay cả khi mạng không ổn định.
 
-\subsubsection{Core Concepts}
+\subsubsection{Khái niệm cốt lõi}
 \begin{itemize}
 	\item \textbf{Inference:} using a pre-trained model to predict new input samples; TinyML primarily targets inference rather than on-device training.
 	\item \textbf{Model quantization:} reducing model precision (e.g., from float32 to int8/int16) to decrease memory usage and improve runtime efficiency.
@@ -98,8 +98,8 @@ TinyML (Tiny Machine Learning) focuses on deploying machine learning inference o
 	\item \textbf{Edge AI:} running AI computation at the data source rather than in remote cloud infrastructure.
 \end{itemize}
 
-\subsubsection{Advantages of TinyML}
-For this project, TinyML provides several practical benefits:
+\subsubsection{Ưu điểm của TinyML}
+Trong đồ án này, TinyML mang lại một số lợi ích thực tiễn:
 \begin{enumerate}
 	\item \textbf{Low latency:} predictions are produced locally in near real time.
 	\item \textbf{Energy efficiency:} reduced network transmission lowers power consumption.
@@ -109,8 +109,8 @@ For this project, TinyML provides several practical benefits:
 	\item \textbf{Infrastructure cost reduction:} less dependency on high-capacity cloud inference services.
 \end{enumerate}
 
-\subsubsection{TinyML Development Workflow}
-The deployment pipeline typically follows these steps:
+\subsubsection{Quy trình phát triển TinyML}
+Quy trình triển khai thường bao gồm các bước sau:
 \begin{enumerate}
 	\item Train a model offline using Python-based ML frameworks and historical datasets.
 	\item Convert the trained model to a lightweight deployment format (e.g., \texttt{.tflite} or equivalent compact representation).
@@ -119,8 +119,8 @@ The deployment pipeline typically follows these steps:
 	\item Deploy to ESP32-S3 and evaluate runtime latency, memory usage, and prediction quality.
 \end{enumerate}
 
-\subsubsection{TinyML Usage in This Project}
-In this IoT system, TinyML is used to classify environmental state from real-time sensor inputs:
+\subsubsection{Ứng dụng TinyML trong đồ án}
+Trong hệ thống IoT này, TinyML được sử dụng để phân loại trạng thái môi trường từ dữ liệu cảm biến thời gian thực:
 \begin{itemize}
 	\item \textbf{Input features:} temperature ($^\circ$C) and humidity (\%) from the DHT20 sensor.
 	\item \textbf{Output classes:} environmental operating states (e.g., invalid state, standby, cooling required, dehumidification required, humidification required).
@@ -130,8 +130,8 @@ In this IoT system, TinyML is used to classify environmental state from real-tim
 
 To reduce communication overhead, the system can publish compact inference results (state labels) instead of transmitting all raw samples continuously.
 
-\subsubsection{Inference Architecture in the Project}
-The inference path is organized as follows:
+\subsubsection{Kiến trúc suy luận trong đồ án}
+Luồng suy luận được tổ chức như sau:
 \begin{enumerate}
 	\item Acquire temperature and humidity from DHT20.
 	\item Apply preprocessing/feature formatting.
@@ -140,7 +140,7 @@ The inference path is organized as follows:
 	\item Publish results to local UI and cloud dashboard.
 \end{enumerate}
 
-\subsubsection{On-Device TinyML vs Cloud ML}
+\subsubsection{TinyML trên thiết bị so với ML trên đám mây}
 \begin{center}
 \begin{tabular}{|p{3.1cm}|p{5.2cm}|p{5.2cm}|}
 \hline
@@ -161,14 +161,14 @@ Model update flow & Often requires firmware/model redeployment & Centralized upd
 \end{tabular}
 \end{center}
 
-\subsubsection{Supporting Tools and Libraries}
-Common tools for TinyML-oriented workflows include TensorFlow Lite, TensorFlow Lite Micro, scikit-learn-based training pipelines, and embedded SDK/library support available in ESP32 ecosystems.
+\subsubsection{Công cụ và thư viện hỗ trợ}
+Các công cụ phổ biến cho quy trình làm việc theo hướng TinyML gồm TensorFlow Lite, TensorFlow Lite Micro, các pipeline huấn luyện dựa trên scikit-learn và bộ SDK/thư viện nhúng sẵn có trong hệ sinh thái ESP32.
 
-\subsubsection{Practical Challenges}
-Key TinyML constraints in embedded deployment include strict RAM/Flash limits, potential accuracy degradation after aggressive quantization, and more difficult debugging on hardware compared with desktop/cloud environments.
+\subsubsection{Các thách thức thực tế}
+Những ràng buộc chính của TinyML khi triển khai trên thiết bị nhúng bao gồm giới hạn chặt chẽ về RAM/Flash, khả năng suy giảm độ chính xác sau khi lượng tử hóa mạnh, và việc gỡ lỗi trên phần cứng khó hơn nhiều so với môi trường máy tính để bàn hoặc đám mây.
 
-\subsection{CoreIoT Background}
-\textit{[Briefly explain the CoreIoT cloud workflow, data publishing path, and monitoring components.]}
+\subsection{Cơ sở về CoreIoT}
+\textit{[Trình bày ngắn gọn luồng làm việc trên đám mây CoreIoT, đường truyền dữ liệu và các thành phần giám sát.]}
 
-\subsection{Chapter Summary}
-\textit{[Summarize this chapter.]}
+\subsection{Tóm tắt chương}
+\textit{[Tóm tắt nội dung của chương này.]}

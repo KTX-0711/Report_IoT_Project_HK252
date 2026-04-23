@@ -1,8 +1,8 @@
 \newpage
-\section{Discussion}
-Dựa trên các kết quả thực nghiệm từ Task 2 đến Task 5, nhóm thực hiện đưa ra các phân tích chi tiết nhằm trả lời các câu hỏi về mối liên hệ giữa Docker và lý thuyết Hệ điều hành.
+\section{Thảo luận}
+Dựa trên các kết quả thực nghiệm từ Nhiệm vụ 2 đến Nhiệm vụ 5, nhóm thực hiện đưa ra các phân tích chi tiết nhằm trả lời các câu hỏi về mối liên hệ giữa Docker và lý thuyết hệ điều hành.
 
-\subsection{Ánh xạ các tính năng của Docker vào cơ chế của Hệ điều hành}
+\subsection{Ánh xạ các tính năng của Docker vào cơ chế của hệ điều hành}
 Thông qua các bài thực hành, nhóm nhận thấy Docker không tự tạo ra sự ảo hóa mà tận dụng trực tiếp các cơ chế có sẵn trong nhân Linux (Host Kernel). Sự ánh xạ cụ thể như sau:
 
 \begin{itemize}
@@ -25,8 +25,8 @@ Thông qua các bài thực hành, nhóm nhận thấy Docker không tự tạo 
     Docker ánh xạ cơ chế quản lý file của OS thông qua OverlayFS để thực hiện \textbf{Copy-on-Write (CoW)}. Thay vì sao chép toàn bộ dữ liệu khi khởi chạy, OS chỉ ghi nhận các thay đổi ở lớp trên cùng (upperdir). Cơ chế này tối ưu hóa I/O và dung lượng lưu trữ tương tự như cơ chế \textit{Virtual Memory} chia sẻ các trang nhớ (shared pages) giữa tiến trình cha và con sau lệnh \texttt{fork()}.
 \end{itemize}
 
-\subsection{Docker gần với VM (Máy ảo) hay Sandbox hơn?}
-Dựa trên kiến trúc và hành vi quan sát được, \textbf{Docker gần với một Sandbox (cơ chế cô lập) hơn là một Virtual Machine (VM) truyền thống}, nhưng thuật ngữ chính xác nhất là \textbf{OS-level Virtualization} (Ảo hóa cấp hệ điều hành).
+\subsection{Docker gần với VM (máy ảo) hay Sandbox hơn?}
+Dựa trên kiến trúc và hành vi quan sát được, \textbf{Docker gần với một Sandbox (cơ chế cô lập) hơn là một Virtual Machine (VM) truyền thống}, nhưng thuật ngữ chính xác nhất là \textbf{ảo hóa cấp hệ điều hành} (OS-level Virtualization).
 
 \begin{itemize}
     \item \textbf{Tại sao không phải là VM?} VM yêu cầu một Hypervisor và một nhân hệ điều hành (Guest Kernel) riêng biệt chạy trên phần cứng ảo hóa. Trong thí nghiệm Task 2, ta thấy container chia sẻ trực tiếp nhân (Kernel) với Host. Các system call từ container (quan sát qua \texttt{strace} ở Task 5) được gửi trực tiếp xuống Host Kernel mà không qua lớp giả lập phần cứng nào.
@@ -36,8 +36,8 @@ Dựa trên kiến trúc và hành vi quan sát được, \textbf{Docker gần v
 
 \textbf{Kết luận:} Docker là một hình thức cô lập tiến trình nâng cao (Advanced Process Isolation). Nó loại bỏ gánh nặng (overhead) của việc chạy một kernel riêng nhưng vẫn đảm bảo tính tách biệt cần thiết.
 
-\subsection{Lựa chọn Base Image phù hợp dưới góc độ OS}
-Từ kết quả so sánh ở Task 5 giữa Ubuntu, Debian Slim và Alpine, nhóm đưa ra bảng phân tích sau:
+\subsection{Lựa chọn Base Image phù hợp dưới góc độ hệ điều hành}
+Từ kết quả so sánh ở Nhiệm vụ 5 giữa Ubuntu, Debian Slim và Alpine, nhóm đưa ra bảng phân tích sau:
 
 \begin{table}[H]
     \centering
@@ -61,7 +61,7 @@ Từ kết quả so sánh ở Task 5 giữa Ubuntu, Debian Slim và Alpine, nhó
     \textbf{Production (General):} Cân bằng tốt nhất giữa kích thước và tương thích. Tốt cho Java, Python, Node.js. \\
     \hline
     \end{tabularx}
-    \caption{So sánh các loại Base Image dưới góc độ Hệ điều hành}
+    \caption{So sánh các loại base image dưới góc độ hệ điều hành}
 \end{table}
 
-\textbf{Góc nhìn OS:} Việc chọn image thực chất là chọn \textbf{User-space Environment}. Vì Kernel luôn là của Host, nên sự khác biệt chỉ nằm ở thư viện chuẩn C (libc) và các công cụ hỗ trợ. Nếu ứng dụng phụ thuộc chặt chẽ vào các hành vi cụ thể của \texttt{glibc}, việc dùng Alpine (\texttt{musl}) sẽ gây rủi ro về độ ổn định (stability) dù tiết kiệm tài nguyên.
+\textbf{Góc nhìn hệ điều hành:} Việc chọn image thực chất là chọn \textbf{môi trường user-space}. Vì kernel luôn là của Host, nên sự khác biệt chỉ nằm ở thư viện chuẩn C (libc) và các công cụ hỗ trợ. Nếu ứng dụng phụ thuộc chặt chẽ vào các hành vi cụ thể của \texttt{glibc}, việc dùng Alpine (\texttt{musl}) sẽ gây rủi ro về độ ổn định dù tiết kiệm tài nguyên.
