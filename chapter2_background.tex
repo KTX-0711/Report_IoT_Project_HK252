@@ -141,33 +141,6 @@ Luồng suy luận được tổ chức như sau:
 	\item Publish results to local UI and cloud dashboard.
 \end{enumerate}
 
-\subsubsection{TinyML trên thiết bị so với ML trên đám mây}
-\begin{center}
-\begin{tabular}{|p{3.1cm}|p{5.2cm}|p{5.2cm}|}
-\hline
-\textbf{Criterion} & \textbf{On-Device TinyML} & \textbf{Cloud ML} \\
-\hline
-Latency & Very low (typically milliseconds) & Higher due to communication and server round-trip \\
-\hline
-Energy usage & Lower communication overhead & Higher network usage for continuous data upload \\
-\hline
-Data privacy & Raw data can remain on-device & Raw data is usually transmitted to remote servers \\
-\hline
-Network independence & Can continue inference offline & Requires stable connectivity for inference \\
-\hline
-Scalability & Limited by device resources & Scales with cloud infrastructure capacity \\
-\hline
-Model update flow & Often requires firmware/model redeployment & Centralized updates are easier on server side \\
-\hline
-\end{tabular}
-\end{center}
-
-\subsubsection{Công cụ và thư viện hỗ trợ}
-Các công cụ phổ biến cho quy trình làm việc theo hướng TinyML gồm TensorFlow Lite, TensorFlow Lite Micro, các pipeline huấn luyện dựa trên scikit-learn và bộ SDK/thư viện nhúng sẵn có trong hệ sinh thái ESP32.
-
-\subsubsection{Các thách thức thực tế}
-Những ràng buộc chính của TinyML khi triển khai trên thiết bị nhúng bao gồm giới hạn chặt chẽ về RAM/Flash, khả năng suy giảm độ chính xác sau khi lượng tử hóa mạnh, và việc gỡ lỗi trên phần cứng khó hơn nhiều so với môi trường máy tính để bàn hoặc đám mây.
-
 \subsection{Cơ sở về CoreIoT}
 \textit{[Trình bày ngắn gọn luồng làm việc trên đám mây CoreIoT, đường truyền dữ liệu và các thành phần giám sát.]}
 
