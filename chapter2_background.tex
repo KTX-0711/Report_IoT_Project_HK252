@@ -1,145 +1,120 @@
 % !TeX root = main.tex
 \newpage
 \section{Khái niệm hệ thống và cơ sở lý thuyết}
-
 \subsection{Nền tảng IoT}
 ESP32 là họ vi điều khiển 32-bit do Espressif Systems phát triển, kế thừa từ ESP8266. Nền tảng này tích hợp kết nối Wi-Fi và Bluetooth/BLE, đồng thời cung cấp hiệu năng xử lý đủ tốt cho các ứng dụng IoT biên. Trong đồ án này, ESP32-S3 được dùng làm bộ điều khiển trung tâm cho các tác vụ cảm biến, xử lý cục bộ, truyền thông và tương tác với đám mây.
 
 \subsubsection{Thông số kỹ thuật chính}
 \begin{itemize}
-	\item \textbf{Processor:} Xtensa/RISC-V class 32-bit architecture (model-dependent), typically operated in the 160--240 MHz range.
-	\item \textbf{Memory:} On-chip SRAM resources with external Flash support (commonly 4--16 MB, depending on board configuration).
-	\item \textbf{Connectivity:} IEEE 802.11 b/g/n Wi-Fi and Bluetooth Low Energy.
-	\item \textbf{Peripheral Interfaces:} GPIO, PWM, ADC, UART, SPI, and I$^2$C.
-	\item \textbf{Power Features:} Support for low-power modes suitable for embedded and battery-aware IoT systems.
-	\item \textbf{Operating Range:} Industrial-grade operating conditions for practical deployment scenarios.
+    \item \textbf{Vi xử lý (Processor):} Kiến trúc 32-bit Xtensa/RISC-V (tùy thuộc vào model), thường hoạt động trong dải tần số 160--240 MHz.
+    \item \textbf{Bộ nhớ (Memory):} Tài nguyên SRAM tích hợp trên chip với hỗ trợ bộ nhớ Flash ngoài (thông dụng từ 4--16 MB, tùy thuộc vào cấu hình của từng bo mạch).
+    \item \textbf{Kết nối (Connectivity):} Hỗ trợ Wi-Fi chuẩn IEEE 802.11 b/g/n và Bluetooth Low Energy (BLE).
+    \item \textbf{Giao tiếp ngoại vi (Peripheral Interfaces):} Tích hợp các chuẩn giao tiếp đa dạng như GPIO, PWM, ADC, UART, SPI và I$^2$C.
+    \item \textbf{Tính năng quản lý năng lượng (Power Features):} Hỗ trợ các chế độ tiết kiệm năng lượng (low-power modes), phù hợp cho các hệ thống nhúng và thiết bị IoT chạy bằng pin.
+    \item \textbf{Điều kiện hoạt động (Operating Range):} Đáp ứng các tiêu chuẩn hoạt động trong môi trường công nghiệp cho các kịch bản triển khai thực tế.
 \end{itemize}
 
 \subsubsection{Lý do lựa chọn ESP32}
 Nền tảng ESP32 được lựa chọn vì các lý do sau:
 \begin{enumerate}
-	\item \textbf{Integrated wireless connectivity:} native Wi-Fi support simplifies device-to-cloud communication and local web control.
-	\item \textbf{Balanced performance:} sufficient processing capability to execute sensor pipelines, web services, and lightweight TinyML inference on one device.
-	\item \textbf{Practical memory capacity:} enough resources for buffering sensor data, serving web assets, and running compact inference models.
-	\item \textbf{Strong software ecosystem:} mature support through PlatformIO, Arduino-compatible libraries, and broad community documentation.
-	\item \textbf{Cost-effectiveness:} favorable hardware cost compared to other IoT platforms with similar connectivity features.
-	\item \textbf{Energy efficiency:} suitable for long-running embedded applications and power-constrained scenarios.
+    \item \textbf{Tích hợp kết nối không dây:} Hỗ trợ Wi-Fi gốc giúp đơn giản hóa việc giao tiếp giữa thiết bị với nền tảng đám mây (device-to-cloud) cũng như điều khiển cục bộ qua giao diện web.
+    \item \textbf{Hiệu suất cân bằng:} Khả năng xử lý đủ mạnh để thực hiện đồng thời các luồng dữ liệu cảm biến, dịch vụ web và chạy suy luận TinyML nhẹ nhàng trên cùng một thiết bị.
+    \item \textbf{Dung lượng bộ nhớ thực tiễn:} Cung cấp đủ tài nguyên cho việc lưu đệm (buffering) dữ liệu cảm biến, phân phối các tệp web và chạy các mô hình suy luận tinh gọn.
+    \item \textbf{Hệ sinh thái phần mềm mạnh mẽ:} Nhận được sự hỗ trợ vững chắc thông qua PlatformIO, các thư viện tương thích với Arduino và tài liệu cộng đồng phong phú.
+    \item \textbf{Tối ưu chi phí (Cost-effectiveness):} Chi phí phần cứng hấp dẫn so với các nền tảng IoT khác có cùng tính năng kết nối.
+    \item \textbf{Tiết kiệm năng lượng (Energy efficiency):} Phù hợp cho các ứng dụng nhúng vận hành trong thời gian dài và các kịch bản hạn chế về nguồn điện.
 \end{enumerate}
 
 \subsubsection{Các tính năng liên quan đến đồ án}
 Trong đồ án này, các khả năng sau của ESP32 được sử dụng trực tiếp:
 \begin{itemize}
-	\item \textbf{I$^2$C interface:} communication with digital sensors for temperature and humidity acquisition.
-	\item \textbf{GPIO/PWM:} control of status LEDs, NeoPixel behavior, and other actuators.
-	\item \textbf{Web server support:} local monitoring and control in Access Point mode.
-	\item \textbf{Flash file system support (e.g., LittleFS):} storage of static web resources (HTML/CSS/JS).
-	\item \textbf{TinyML compatibility:} on-device inference for lightweight environmental state analysis.
+    \item \textbf{Giao tiếp I$^2$C:} Thực hiện kết nối với các cảm biến kỹ thuật số để thu thập dữ liệu nhiệt độ và độ ẩm.
+    \item \textbf{GPIO/PWM:} Điều khiển trạng thái đèn LED, cấu hình hành vi của NeoPixel và các cơ cấu chấp hành khác.
+    \item \textbf{Hỗ trợ máy chủ Web (Web server support):} Cho phép giám sát và điều khiển thiết bị cục bộ thông qua chế độ Access Point (AP).
+    \item \textbf{Hỗ trợ hệ thống tệp trên Flash (ví dụ: LittleFS):} Lưu trữ các tài nguyên web tĩnh (HTML/CSS/JS).
+    \item \textbf{Tương thích TinyML:} Khả năng suy luận trực tiếp trên thiết bị để phân tích trạng thái môi trường một cách nhẹ nhàng và tức thời.
 \end{itemize}
 
-\subsubsection{So sánh với các nền tảng thay thế}
-So với các lựa chọn phổ biến như Arduino Uno, Arduino MKR WiFi hoặc các board thuộc họ Raspberry Pi Pico, ESP32 cân bằng tốt hơn giữa năng lực tính toán, kết nối không dây tích hợp, hỗ trợ phần mềm và chi phí triển khai. Nhờ đó, ESP32 đặc biệt phù hợp với một đồ án IoT toàn diện, kết hợp cảm biến, trí tuệ cục bộ, tương tác web và gửi dữ liệu lên đám mây.
 
 \subsection{Cơ sở về RTOS}
 FreeRTOS là một nhân hệ điều hành thời gian thực (RTOS) gọn nhẹ, mã nguồn mở, được thiết kế cho các hệ thống nhúng có tài nguyên hạn chế. Hệ điều hành này cung cấp một lớp trừu tượng có cấu trúc cho thực thi đồng thời, xử lý sự kiện và đồng bộ giữa các tác vụ mà không yêu cầu lập trình viên phải tự xây dựng cơ chế lập lịch phức tạp. Nhờ chi phí tài nguyên thấp và hệ sinh thái hỗ trợ trưởng thành, FreeRTOS được sử dụng rộng rãi trên các nền tảng vi điều khiển như ESP32, STM32 và ARM Cortex-M.
 
 \subsubsection{Khái niệm cốt lõi}
 \begin{itemize}
-	\item \textbf{Task:} an independent execution unit, typically implemented as an infinite loop with its own stack and runtime state.
-	\item \textbf{Scheduler:} the kernel component that decides which task executes at each instant; FreeRTOS commonly uses preemptive priority-based scheduling.
-	\item \textbf{Queue:} a thread-safe communication mechanism for passing messages or data between tasks.
-	\item \textbf{Semaphore:} a synchronization primitive used for signaling events and controlling access to shared resources.
-	\item \textbf{Mutex:} a specialized locking mechanism for protecting critical shared resources from concurrent access.
+	\item \textbf{Task (Tác vụ):} là một đơn vị thực thi độc lập, thường được triển khai dưới dạng một vòng lặp vô hạn với không gian bộ nhớ (stack) và trạng thái thực thi riêng.
+	\item \textbf{Scheduler (Bộ lập lịch):} thành phần cốt lõi quyết định tác vụ nào được thực thi tại mỗi thời điểm; FreeRTOS thường sử dụng cơ chế lập lịch ưu tiên trưng dụng (preemptive priority-based scheduling).
+	\item \textbf{Queue (Hàng đợi):} cơ chế truyền thông an toàn luồng (thread-safe) để truyền tin nhắn hoặc dữ liệu giữa các tác vụ.
+	\item \textbf{Semaphore:} một cơ chế đồng bộ hóa được sử dụng để báo hiệu các sự kiện và kiểm soát quyền truy cập vào các tài nguyên dùng chung.
+	\item \textbf{Mutex:} một cơ chế khóa chuyên dụng để bảo vệ các tài nguyên dùng chung quan trọng khỏi việc bị truy cập đồng thời.
 \end{itemize}
 
-\subsubsection{Ưu điểm của FreeRTOS}
-FreeRTOS mang lại nhiều lợi ích thực tiễn cho đồ án này:
-\begin{enumerate}
-	\item \textbf{Multitasking support:} multiple functional components can run concurrently as independent tasks.
-	\item \textbf{Open-source flexibility:} the kernel is freely available and can be adapted to project-specific constraints.
-	\item \textbf{Low resource footprint:} suitable for microcontrollers with limited memory and compute resources.
-	\item \textbf{Modularity and scalability:} queue, semaphore, software timer, and synchronization features can be incrementally integrated.
-	\item \textbf{Strong platform support:} deeply integrated with ESP-IDF and well supported by the embedded systems community.
-	\item \textbf{Industrial reliability:} broadly validated in large-scale commercial embedded deployments.
-\end{enumerate}
 
 \subsubsection{Vai trò của FreeRTOS trong đồ án}
-Trong hệ thống IoT này, FreeRTOS được dùng để điều phối nhiều mô-đun có yêu cầu thời gian và truyền thông cao:
+Trong hệ thống IoT này, FreeRTOS được dùng để điều phối nhiều mô-đun có yêu cầu khắt khe về mặt thời gian và truyền thông:
 \begin{enumerate}
-	\item \textbf{Concurrent task management:} separate tasks handle web serving, periodic sensor sampling, TinyML inference, and LED/device control.
-	\item \textbf{Data synchronization:} semaphores protect shared sensor data paths, while queues support safe task-to-task data transfer.
-	\item \textbf{Priority-aware response:} web request handling can be assigned higher priority for responsive user interaction; sensing and inference tasks run at controlled medium priorities.
-	\item \textbf{Resource isolation:} each task has dedicated stack allocation, reducing memory interference and improving system stability.
+	\item \textbf{Quản lý tác vụ đồng thời:} các tác vụ riêng biệt đảm nhiệm việc xử lý web server, lấy mẫu cảm biến định kỳ, thực thi suy luận TinyML và điều khiển LED/thiết bị.
+	\item \textbf{Đồng bộ hóa dữ liệu:} semaphore bảo vệ các luồng dữ liệu cảm biến dùng chung, trong khi hàng đợi hỗ trợ việc truyền dữ liệu an toàn giữa các tác vụ.
+	\item \textbf{Phản hồi theo mức độ ưu tiên:} tác vụ xử lý yêu cầu web có thể được gán mức ưu tiên cao hơn để đảm bảo khả năng tương tác mượt mà với người dùng; các tác vụ thu thập cảm biến và suy luận được chạy ở mức ưu tiên trung bình một cách có kiểm soát.
+	\item \textbf{Cô lập tài nguyên:} mỗi tác vụ có một vùng nhớ (stack) chuyên dụng riêng, giúp giảm thiểu hiện tượng tràn/nhiễu bộ nhớ và cải thiện độ ổn định của toàn hệ thống.
 \end{enumerate}
 
 \subsubsection{Kiến trúc tác vụ sử dụng trong đồ án}
-Thiết kế phần mềm tuân theo mô hình tổ chức tác vụ nhiều lớp của FreeRTOS:
+Thiết kế phần mềm tuân theo mô hình tổ chức đa tác vụ của FreeRTOS:
 \begin{itemize}
-	\item \textbf{Task WebServer (high priority):} handles HTTP requests and local UI interactions.
-	\item \textbf{Task Sensor Reader (medium priority):} acquires periodic temperature and humidity measurements.
-	\item \textbf{Task TinyML (medium priority):} executes on-device inference for state prediction.
-	\item \textbf{Task LED/Device Control:} updates LED/NeoPixel and related actuator outputs.
-	\item \textbf{Task Wi-Fi Manager:} manages connectivity and reconnection logic.
-	\item \textbf{Idle Task (lowest priority):} runs when no application task is ready.
+	\item \textbf{Task WebServer (mức ưu tiên cao):} xử lý các yêu cầu HTTP và các tương tác trên giao diện người dùng cục bộ.
+	\item \textbf{Task Sensor Reader (mức ưu tiên trung bình):} thu thập dữ liệu đo nhiệt độ và độ ẩm định kỳ.
+	\item \textbf{Task TinyML (mức ưu tiên trung bình):} thực thi quá trình suy luận trực tiếp trên thiết bị (on-device inference) để dự đoán trạng thái.
+	\item \textbf{Task Điều khiển LED/Thiết bị:} cập nhật trạng thái đầu ra của LED/NeoPixel và các cơ cấu chấp hành liên quan.
+	\item \textbf{Task Quản lý Wi-Fi:} quản lý kết nối mạng và logic tự động kết nối lại khi mất tín hiệu.
+	\item \textbf{Task Nhàn rỗi - Idle Task (mức ưu tiên thấp nhất):} chạy khi không có tác vụ ứng dụng nào sẵn sàng thực thi.
 \end{itemize}
 
-\subsubsection{So sánh với thiết kế firmware không dùng RTOS}
-Nếu không có RTOS, việc phát triển firmware thường phải dựa nhiều vào cơ chế ngắt và các máy trạng thái được quản lý thủ công, khiến hệ thống khó mở rộng và bảo trì khi độ phức tạp tăng lên. FreeRTOS khắc phục các hạn chế này bằng cách phân rã ứng dụng thành các tác vụ độc lập và giao việc lập lịch, đồng bộ cho nhân hệ điều hành, từ đó cải thiện khả năng bảo trì, tính dự đoán về thời gian và độ ổn định trước lỗi tranh chấp tài nguyên.
 
 \subsection{Cơ sở về TinyML}
 TinyML (Tiny Machine Learning) tập trung vào việc triển khai suy luận học máy trên các thiết bị nhúng có tài nguyên hạn chế như vi điều khiển và cảm biến thông minh. Thay vì chuyển luồng dữ liệu cảm biến thô lên máy chủ đám mây để xử lý AI, TinyML thực hiện dự đoán trực tiếp ở biên. Cách tiếp cận này giúp giảm độ trễ, giảm chi phí năng lượng cho truyền thông, tăng cường riêng tư và cho phép hệ thống tiếp tục hoạt động ngay cả khi mạng không ổn định.
 
 \subsubsection{Khái niệm cốt lõi}
 \begin{itemize}
-	\item \textbf{Inference:} using a pre-trained model to predict new input samples; TinyML primarily targets inference rather than on-device training.
-	\item \textbf{Model quantization:} reducing model precision (e.g., from float32 to int8/int16) to decrease memory usage and improve runtime efficiency.
-	\item \textbf{TensorFlow Lite / TensorFlow Lite Micro:} lightweight runtimes for deploying compact models on embedded and IoT hardware.
-	\item \textbf{Feature extraction:} converting raw sensor readings into meaningful features suitable for model input.
-	\item \textbf{Edge AI:} running AI computation at the data source rather than in remote cloud infrastructure.
+    \item \textbf{Suy luận (Inference):} Sử dụng mô hình đã được huấn luyện trước để dự đoán các mẫu dữ liệu đầu vào mới; TinyML chủ yếu tập trung vào quá trình suy luận thay vì huấn luyện trực tiếp trên thiết bị (on-device training).
+    \item \textbf{Lượng tử hóa mô hình (Model quantization):} Giảm độ chính xác của các trọng số trong mô hình (ví dụ: từ float32 xuống int8 hoặc int16) nhằm giảm dung lượng bộ nhớ và cải thiện hiệu suất thực thi.
+    \item \textbf{TensorFlow Lite / TensorFlow Lite Micro:} Các môi trường thực thi (runtimes) tối giản, được thiết kế để triển khai các mô hình nhỏ gọn trên phần cứng nhúng và thiết bị IoT.
+    \item \textbf{Trích xuất đặc trưng (Feature extraction):} Chuyển đổi dữ liệu cảm biến thô thành các đặc trưng có ý nghĩa, phù hợp làm đầu vào cho mô hình.
+    \item \textbf{Trí tuệ nhân tạo biên (Edge AI):} Thực hiện các tính toán AI ngay tại nguồn tạo ra dữ liệu (thiết bị biên) thay vì phụ thuộc vào cơ sở hạ tầng đám mây từ xa.
 \end{itemize}
 
 \subsubsection{Ưu điểm của TinyML}
 Trong đồ án này, TinyML mang lại một số lợi ích thực tiễn:
 \begin{enumerate}
-	\item \textbf{Low latency:} predictions are produced locally in near real time.
-	\item \textbf{Energy efficiency:} reduced network transmission lowers power consumption.
-	\item \textbf{Data privacy:} sensitive raw measurements can remain on-device.
-	\item \textbf{Offline capability:} core inference continues even when cloud connectivity is unavailable.
-	\item \textbf{Compact deployment:} optimized models can run within limited memory and compute budgets.
-	\item \textbf{Infrastructure cost reduction:} less dependency on high-capacity cloud inference services.
+    \item \textbf{Độ trễ thấp:} Các dự đoán được thực hiện cục bộ với thời gian gần như thực (near real-time).
+    \item \textbf{Tiết kiệm năng lượng:} Việc giảm thiểu truyền tải dữ liệu qua mạng giúp giảm đáng kể mức tiêu thụ điện năng.
+    \item \textbf{Bảo mật dữ liệu:} Các dữ liệu đo lường thô và nhạy cảm có thể được giữ lại và xử lý hoàn toàn trên thiết bị.
+    \item \textbf{Khả năng hoạt động ngoại tuyến (Offline):} Quá trình suy luận cốt lõi vẫn tiếp tục diễn ra ngay cả khi không có kết nối với máy chủ đám mây.
+    \item \textbf{Triển khai nhỏ gọn:} Các mô hình sau khi tối ưu hóa có thể hoạt động trơn tru trong giới hạn khắt khe về bộ nhớ và khả năng tính toán.
+    \item \textbf{Giảm chi phí hạ tầng:} Ít phụ thuộc hơn vào các dịch vụ tính toán đám mây có dung lượng lớn và chi phí cao.
 \end{enumerate}
 
 \subsubsection{Quy trình phát triển TinyML}
 Quy trình triển khai thường bao gồm các bước sau:
 \begin{enumerate}
-	\item Train a model offline using Python-based ML frameworks and historical datasets.
-	\item Convert the trained model to a lightweight deployment format (e.g., \texttt{.tflite} or equivalent compact representation).
-	\item Apply optimization/quantization to reduce memory footprint and improve execution speed.
-	\item Embed model parameters into firmware (for example as a C header file).
-	\item Deploy to ESP32-S3 and evaluate runtime latency, memory usage, and prediction quality.
+    \item Huấn luyện mô hình ngoại tuyến bằng cách sử dụng các framework học máy trên Python và tập dữ liệu lịch sử.
+    \item Chuyển đổi mô hình đã huấn luyện sang định dạng triển khai nhẹ (ví dụ: \texttt{.tflite} hoặc các định dạng biểu diễn nhỏ gọn tương đương).
+    \item Áp dụng các kỹ thuật tối ưu hóa và lượng tử hóa để giảm mức sử dụng bộ nhớ và tăng tốc độ thực thi.
+    \item Tích hợp các tham số của mô hình vào firmware (ví dụ: dưới dạng tệp tin header của ngôn ngữ C).
+    \item Triển khai lên vi điều khiển ESP32-S3 và đánh giá độ trễ thực thi, mức tiêu thụ bộ nhớ cùng chất lượng dự đoán.
 \end{enumerate}
 
 \subsubsection{Ứng dụng TinyML trong đồ án}
 Trong hệ thống IoT này, TinyML được sử dụng để phân loại trạng thái môi trường từ dữ liệu cảm biến thời gian thực:
 \begin{itemize}
-	\item \textbf{Input features:} temperature ($^\circ$C) and humidity (\%) from the DHT20 sensor.
-	\item \textbf{Output classes:} environmental operating states (e.g., invalid state, standby, cooling required, dehumidification required, humidification required).
-	\item \textbf{Model choice:} Gaussian Naive Bayes (GNB), trained on historical labeled pairs of temperature-humidity samples.
-	\item \textbf{Firmware integration:} model parameters exported to \texttt{naive\_bayes\_model.h} and compiled into the ESP32-S3 application.
+    \item \textbf{Đặc trưng đầu vào (Input features):} Nhiệt độ ($^\circ$C) và độ ẩm (\%) thu thập từ cảm biến DHT20.
+    \item \textbf{Lớp đầu ra (Output classes):} Các trạng thái hoạt động của môi trường (ví dụ: trạng thái không hợp lệ, chế độ chờ, cần làm mát, cần hút ẩm, cần tạo ẩm).
+    \item \textbf{Lựa chọn mô hình:} Thuật toán Naive Bayes với phân phối chuẩn (Gaussian Naive Bayes - GNB), được huấn luyện trên các cặp mẫu nhiệt độ - độ ẩm lịch sử đã được gán nhãn.
+    \item \textbf{Tích hợp Firmware:} Các tham số của mô hình được xuất ra tệp \texttt{naive\_bayes\_model.h} và biên dịch cùng với ứng dụng trên ESP32-S3.
 \end{itemize}
 
-To reduce communication overhead, the system can publish compact inference results (state labels) instead of transmitting all raw samples continuously.
+Để giảm thiểu băng thông giao tiếp, hệ thống có thể chỉ gửi đi các kết quả suy luận ngắn gọn (nhãn trạng thái) thay vì liên tục truyền toàn bộ dữ liệu thô.
 
-\subsubsection{Kiến trúc suy luận trong đồ án}
-Luồng suy luận được tổ chức như sau:
-\begin{enumerate}
-	\item Acquire temperature and humidity from DHT20.
-	\item Apply preprocessing/feature formatting.
-	\item Run Gaussian Naive Bayes inference on ESP32-S3.
-	\item Produce the environmental-state classification.
-	\item Publish results to local UI and cloud dashboard.
-\end{enumerate}
 
-\subsection{Cơ sở về CoreIoT}
 
 \input{CoreIot.tex}
 
