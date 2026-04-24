@@ -1,35 +1,28 @@
 % !TeX root = main.tex
 \newpage
 \section{Thiết kế và triển khai hệ thống}
-\subsection{Giới thiệu}
-\textit{[Giới thiệu chương triển khai và quy trình thiết kế.]}
+\subsection{Tổng quan kiến trúc}
+\begin{figure}[H]
+\centering
+    \includegraphics[width=0.75\linewidth]{picture/system.png}
+ \caption{Task 6 FSM}
+\end{figure}
 
-\subsection{Nhiệm vụ 1: Nhấp nháy LED theo nhiệt độ}
-\textit{[Mô tả logic điều khiển, điều kiện kích hoạt và cách sử dụng semaphore.]}
+\subsection{Task 1: Nhấp nháy LED theo nhiệt độ}
 \input{task1.tex}
-\subsection{Nhiệm vụ 2: Điều khiển NeoPixel theo độ ẩm}
-\textit{[Mô tả mẫu màu, các ngưỡng và cơ chế phối hợp dựa trên semaphore.]}
+\subsection{Task 2: Điều khiển NeoPixel theo độ ẩm}
 \input{task2.tex}
-\subsection{Nhiệm vụ 3: Giám sát nhiệt độ và độ ẩm với LCD}
-\textit{[Giải thích việc lấy mẫu cảm biến định kỳ, định dạng dữ liệu và logic cập nhật LCD theo thời gian thực.]}
+\subsection{Task 3: Giám sát nhiệt độ và độ ẩm với LCD}
 \input{task3.tex}
 \newpage
-\subsection{Nhiệm vụ 4: Máy chủ web ở chế độ Access Point}
+\subsection{Task 4: Máy chủ web ở chế độ Access Point}
 
 \input{task4.tex}
 \newpage
 \input{task5.tex}
 \newpage
-\subsection{Nhiệm vụ 6: Gửi dữ liệu lên máy chủ đám mây CoreIoT}
-\textit{[Mô tả định dạng dữ liệu gửi lên đám mây, quy trình publish và chiến lược đảm bảo độ tin cậy/thử lại.]}
+\subsection{Task 6: Gửi dữ liệu lên máy chủ đám mây CoreIoT}
 \input{task6.tex}
-\subsection{Tổng quan kiến trúc}
-\textit{[Trình bày kiến trúc tổng thể của hệ thống, luồng dữ liệu và sự tương tác giữa các tác vụ.]}
-
-\subsection{Tính mới và cải tiến}
-\textit{[Nêu bật các tính năng sáng tạo, nâng cấp giao diện và các mở rộng TinyML để tăng điểm cộng.]}
-
 
 \subsection{Tóm tắt chương}
-\textit{[Tóm tắt nội dung chương triển khai.]}
 Chương này tổng kết quá trình triển khai hệ thống trên ESP32. Thông qua FreeRTOS, hệ thống đã vận hành đa nhiệm đồng bộ các module phần cứng: cảm biến DHT20, màn hình LCD và hệ thống LED cảnh báo trực quan. Nền tảng mạng được thiết lập linh hoạt, kết hợp Máy chủ Web cục bộ để cấu hình thiết bị và giao tiếp đám mây CoreIoT qua giao thức MQTT. Đặc biệt, việc nhúng thành công mô hình học máy TinyML tại biên đã nâng cấp thiết bị thành một hệ thống AIoT thông minh, tự chủ suy diễn dữ liệu môi trường theo thời gian thực.

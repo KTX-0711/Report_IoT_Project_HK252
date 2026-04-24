@@ -2,25 +2,30 @@
 \newpage
 \section{Giới thiệu}
 \subsection{Tổng quan đề tài}
-\textit{Đồ án này xây dựng một hệ thống IoT thông minh dựa trên nền tảng ESP32 để giám sát và điều khiển môi trường theo thời gian thực. Hệ thống thu thập dữ liệu nhiệt độ và độ ẩm từ các cảm biến tích hợp, hiển thị kết quả qua giao diện web, đồng thời cho phép người dùng cấu hình Wi-Fi, theo dõi trạng thái thiết bị và điều khiển từ xa một số chức năng đã chọn. Bên cạnh đó, đồ án tích hợp mô hình Machine Learning/TinyML để phân tích dữ liệu cảm biến và đưa ra dự đoán hoặc khuyến nghị phù hợp với trạng thái môi trường quan sát được. Giải pháp đề xuất hướng đến tự động hóa, cải thiện trải nghiệm người dùng và vẫn phù hợp với giới hạn tài nguyên xử lý và bộ nhớ của vi điều khiển ESP32.}
 
 \subsection{Các nhiệm vụ và yêu cầu của đồ án}
 Phần triển khai được tổ chức thành sáu nhiệm vụ chính:
 \begin{enumerate}
-	\item \textbf{Nhiệm vụ 1: Nhấp nháy LED theo nhiệt độ} --- điều khiển LED trạng thái nhấp nháy dựa trên các mức nhiệt độ đo được.
-	\item \textbf{Nhiệm vụ 2: Điều khiển NeoPixel theo độ ẩm} --- thay đổi màu sắc/hành vi của NeoPixel dựa trên các khoảng độ ẩm.
-	\item \textbf{Nhiệm vụ 3: Giám sát nhiệt độ và độ ẩm với LCD} --- đọc dữ liệu cảm biến liên tục và hiển thị kết quả thời gian thực trên giao diện LCD.
-	\item \textbf{Nhiệm vụ 4: Máy chủ web ở chế độ Access Point} --- triển khai máy chủ web trên ESP32-S3 để cung cấp chức năng cấu hình và giám sát cục bộ qua chế độ AP.
-	\item \textbf{Nhiệm vụ 5: Triển khai TinyML và đánh giá độ chính xác} --- đưa mô hình TinyML lên thiết bị và đánh giá chất lượng suy luận bằng các thước đo phù hợp.
-	\item \textbf{Nhiệm vụ 6: Gửi dữ liệu lên máy chủ đám mây CoreIoT} --- truyền dữ liệu thu thập được và trạng thái thiết bị đến backend CoreIoT để giám sát từ xa.
+	\item \textbf{Task 1: Nhấp nháy LED theo nhiệt độ} --- điều khiển LED trạng thái nhấp nháy dựa trên các mức nhiệt độ đo được.
+	\item \textbf{Task 2: Điều khiển NeoPixel theo độ ẩm} --- thay đổi màu sắc/hành vi của NeoPixel dựa trên các khoảng độ ẩm.
+	\item \textbf{Task 3: Giám sát nhiệt độ và độ ẩm với LCD} --- đọc dữ liệu cảm biến liên tục và hiển thị kết quả thời gian thực trên giao diện LCD.
+	\item \textbf{Task 4: Máy chủ web ở chế độ Access Point} --- triển khai máy chủ web trên ESP32-S3 để cung cấp chức năng cấu hình và giám sát cục bộ qua chế độ AP.
+	\item \textbf{Task 5: Triển khai TinyML và đánh giá độ chính xác} --- đưa mô hình TinyML lên thiết bị và đánh giá chất lượng suy luận bằng các thước đo phù hợp.
+	\item \textbf{Task 6: Gửi dữ liệu lên máy chủ đám mây CoreIoT} --- truyền dữ liệu thu thập được và trạng thái thiết bị đến backend CoreIoT để giám sát từ xa.
 \end{enumerate}
 
 Toàn bộ hoạt động lập trình, tích hợp và kiểm thử được thực hiện trên nền tảng \textbf{ESP32-S3} với \textbf{PlatformIO} làm môi trường phát triển chính.
 
 \subsection{Phạm vi và giới hạn}
-\textit{[Mô tả những nội dung mà báo cáo bao quát và những phần nằm ngoài phạm vi.]}
-
+ Đề Tài tập trung vào việc thiết kế và phát triển phần mềm cho hệ thống IoT đa nhiệm trên nền tảng vi điều khiển ESP32. Hệ thống bao quát các tính năng cốt lõi: xử lý đa tác vụ với hệ điều hành FreeRTOS, giám sát và cấu hình nội bộ qua Máy chủ Web (AP/STA mode), giao tiếp dữ liệu đám mây qua giao thức MQTT (CoreIoT), và triển khai mô hình phân loại tĩnh tại biên (TinyML - Naive Bayes).
 
 \subsection{Bố cục báo cáo}
-\textit{[Trình bày ngắn gọn cấu trúc các chương còn lại của báo cáo.]}
 
+Dựa trên quy trình phát triển thực tế, báo cáo được cấu trúc thành 5 chương chính:
+\begin{itemize}
+    \item \textbf{Chương 1: Giới thiệu :} Nêu bật bối cảnh, lý do chọn đề tài, mục tiêu và xác định rõ phạm vi giới hạn của đồ án.
+    \item \textbf{Chương 2: Cơ sở lý thuyết :} Cung cấp các kiến thức nền tảng về vi điều khiển ESP32, hệ điều hành thời gian thực FreeRTOS, giao thức MQTT và kỹ thuật học máy tại biên (TinyML).
+    \item \textbf{Chương 3: Thiết kế và triển khai :} Đi sâu vào kiến trúc phần mềm, cơ chế đồng bộ đa nhiệm và mã nguồn của các tác vụ thu thập, cảnh báo, máy chủ Web và giao tiếp đám mây.
+    \item \textbf{Chương 4: Đánh giá và thực nghiệm :} Trình bày các kịch bản kiểm thử, đánh giá tính ổn định của hệ thống, thời gian phản hồi và độ chính xác của mô hình học máy.
+    \item \textbf{Chương 5: Kết luận :} Tổng kết những kết quả kỹ thuật đạt được và vạch ra định hướng nâng cấp hệ thống trong tương lai.
+\end{itemize}
