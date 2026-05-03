@@ -72,17 +72,6 @@ TinyML (Tiny Machine Learning) tập trung vào việc triển khai suy luận h
     \item \textbf{Trí tuệ nhân tạo biên (Edge AI):} Thực hiện các tính toán AI ngay tại nguồn tạo ra dữ liệu (thiết bị biên) thay vì phụ thuộc vào cơ sở hạ tầng đám mây từ xa.
 \end{itemize}
 
-\subsubsection{Ưu điểm của TinyML}
-Trong đồ án này, TinyML mang lại một số lợi ích thực tiễn:
-\begin{enumerate}
-    \item \textbf{Độ trễ thấp:} Các dự đoán được thực hiện cục bộ với thời gian gần như thực (near real-time).
-    \item \textbf{Tiết kiệm năng lượng:} Việc giảm thiểu truyền tải dữ liệu qua mạng giúp giảm đáng kể mức tiêu thụ điện năng.
-    \item \textbf{Bảo mật dữ liệu:} Các dữ liệu đo lường thô và nhạy cảm có thể được giữ lại và xử lý hoàn toàn trên thiết bị.
-    \item \textbf{Khả năng hoạt động ngoại tuyến (Offline):} Quá trình suy luận cốt lõi vẫn tiếp tục diễn ra ngay cả khi không có kết nối với máy chủ đám mây.
-    \item \textbf{Triển khai nhỏ gọn:} Các mô hình sau khi tối ưu hóa có thể hoạt động trơn tru trong giới hạn khắt khe về bộ nhớ và khả năng tính toán.
-    \item \textbf{Giảm chi phí hạ tầng:} Ít phụ thuộc hơn vào các dịch vụ tính toán đám mây có dung lượng lớn và chi phí cao.
-\end{enumerate}
-
 \subsubsection{Quy trình phát triển TinyML}
 Quy trình triển khai thường bao gồm các bước sau:
 \begin{enumerate}
@@ -104,7 +93,60 @@ Trong hệ thống IoT này, TinyML được sử dụng để phân loại tr�
 
 Để giảm thiểu băng thông giao tiếp, hệ thống có thể chỉ gửi đi các kết quả suy luận ngắn gọn (nhãn trạng thái) thay vì liên tục truyền toàn bộ dữ liệu thô.
 
+\subsection{Cơ sở lý thuyết mô hình Naive Bayes và Phân phối chuẩn (GaussianNB)}
 
+\subsubsection{Định lý Bayes và thuật toán Naive Bayes}
+Naive Bayes là một thuật toán phân loại có giám sát dựa trên nền tảng của định lý xác suất Bayes. Mục tiêu của thuật toán là tính toán xác suất để một điểm dữ liệu với vector đặc trưng $X = (x_1, x_2, ..., x_n)$ thuộc về một lớp $y$ cụ thể. Phương trình cốt lõi của định lý Bayes được biểu diễn như sau:
+
+\begin{equation}
+P(y|X) = \frac{P(X|y)P(y)}{P(X)}
+\end{equation}
+
+Trong đó:
+\begin{itemize}
+    \item $P(y|X)$ (\textbf{Posterior - Xác suất hậu nghiệm}): Xác suất điểm dữ liệu thuộc lớp $y$ khi đã biết các đặc trưng $X$. Đây là giá trị mô hình cần tối đa hóa.
+    \item $P(y)$ (\textbf{Prior - Xác suất tiên nghiệm}): Xác suất xuất hiện của lớp $y$ trong toàn bộ tập dữ liệu, được tính bằng tỷ lệ số mẫu của lớp $y$ trên tổng số mẫu.
+    \item $P(X|y)$ (\textbf{Likelihood - Khả năng}): Xác suất quan sát được bộ đặc trưng $X$ nếu điểm dữ liệu thực sự thuộc lớp $y$.
+    \item $P(X)$ (\textbf{Evidence - Chứng cứ}): Xác suất xuất hiện của bộ đặc trưng $X$. Do $P(X)$ là hằng số với mọi lớp $y$, ta có thể loại bỏ thành phần này trong quá trình so sánh để tối ưu khối lượng tính toán.
+\end{itemize}
+
+Điểm đặc trưng làm nên tên gọi "Naive" (Ngây thơ) của thuật toán là \textit{giả định độc lập có điều kiện} (conditional independence). Thuật toán giả định rằng sự xuất hiện của một đặc trưng $x_i$ hoàn toàn không liên quan đến sự xuất hiện của bất kỳ đặc trưng $x_j$ nào khác khi đã biết lớp $y$. Nhờ giả định này, thành phần Likelihood phức tạp được đơn giản hóa thành tích của các xác suất thành phần:
+
+\begin{equation}
+P(X|y) = \prod_{i=1}^{n} P(x_i|y)
+\end{equation}
+
+Kết hợp lại, nguyên tắc quyết định phân loại (decision rule) của Naive Bayes là chọn lớp $\hat{y}$ sao cho biểu thức sau đạt giá trị lớn nhất:
+
+\begin{equation}
+\hat{y} = \arg\max_{y} \left( P(y) \prod_{i=1}^{n} P(x_i|y) \right)
+\label{eq:naive_bayes_base}
+\end{equation}
+
+\subsubsection{Biến đổi công thức với Gaussian Naive Bayes (GaussianNB)}
+Trong bài toán giám sát môi trường, các đặc trưng đầu vào (Nhiệt độ, Độ ẩm) là các giá trị liên tục (continuous data) thay vì rời rạc (discrete data). Việc đếm tần suất xuất hiện của một con số nhiệt độ chính xác để tính $P(x_i|y)$ là bất khả thi. Để giải quyết vấn đề này, thuật toán \textbf{Gaussian Naive Bayes (GaussianNB)} được áp dụng.
+
+GaussianNB giả định rằng các giá trị liên tục của một đặc trưng trong một lớp nhất định tuân theo \textbf{phân phối chuẩn} (Gaussian Distribution). Thay vì lưu trữ toàn bộ tập dữ liệu, mô hình chỉ cần ước lượng hai tham số thống kê cho mỗi đặc trưng $i$ trong mỗi lớp $y$:
+\begin{itemize}
+    \item $\mu_{y,i}$: Giá trị trung bình (Mean) của đặc trưng $i$ trong lớp $y$.
+    \item $\sigma_{y,i}^2$: Phương sai (Variance) của đặc trưng $i$ trong lớp $y$.
+\end{itemize}
+
+Khi đó, thành phần xác suất $P(x_i|y)$ được thay thế bằng hàm mật độ xác suất (Probability Density Function - PDF) của phân phối chuẩn:
+
+\begin{equation}
+P(x_i|y) = \frac{1}{\sqrt{2\pi\sigma_{y,i}^2}} \exp\left(-\frac{(x_i - \mu_{y,i})^2}{2\sigma_{y,i}^2}\right)
+\label{eq:gaussian_pdf}
+\end{equation}
+
+Thay phương trình (\ref{eq:gaussian_pdf}) vào nguyên tắc quyết định (\ref{eq:naive_bayes_base}), ta thu được công thức phân loại hoàn chỉnh của GaussianNB đối với dữ liệu liên tục:
+
+\begin{equation}
+\hat{y} = \arg\max_{y} \left( P(y) \prod_{i=1}^{n} \frac{1}{\sqrt{2\pi\sigma_{y,i}^2}} \exp\left(-\frac{(x_i - \mu_{y,i})^2}{2\sigma_{y,i}^2}\right) \right)
+\label{eq:gaussian_nb_final}
+\end{equation}
+
+Phương trình (\ref{eq:gaussian_nb_final}) chính là nền tảng toán học để huấn luyện mô hình trên Python, từ đó trích xuất các ma trận $\mu$ và $\sigma^2$ nhằm triển khai thuật toán tính toán tối ưu trên vi điều khiển ESP32.
 
 \input{CoreIot.tex}
 
