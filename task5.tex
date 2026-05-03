@@ -140,28 +140,6 @@ Dựa trên kết quả đánh giá ở giai đoạn trước, thuật toán Gau
     \end{itemize}
 \end{itemize}
 
-\subsubsection*{Cấu trúc tệp tiêu đề C (C Header Output)}
-Kết quả của quá trình xuất là tệp \texttt{naive\_bayes\_model.h}, chứa toàn bộ tri thức của AI dưới dạng các mảng bộ nhớ tĩnh tối ưu cho SRAM của ESP32.
-
-\begin{lstlisting}[language=C]
-#ifndef NAIVE_BAYES_MODEL_H
-#define NAIVE_BAYES_MODEL_H
-
-#define NB_NUM_CLASSES 5
-#define NB_NUM_FEATURES 2
-
-static const float kNbFeatureMean[NB_NUM_FEATURES] = {47.44557571f, 50.07275391f};
-static const float kNbFeatureStd[NB_NUM_FEATURES] = {30.14743614f, 28.64877701f};
-// ... (Chi tiet cac mang kNbClassPrior, kNbTheta, kNbVariance) ...
-
-// Runtime formula on ESP32:
-// 1) normalize input: x_norm[j] = (x[j] - kNbFeatureMean[j]) / kNbFeatureStd[j]
-// 2) score[class] = log(prior) - 0.5 * sum(log(2*pi*var)) - 0.5 * sum((x_norm-theta)^2 / var)
-// 3) choose argmax(score)
-#endif
-\end{lstlisting}
-
-Điểm nhấn kỹ thuật nằm ở phần chú thích cuối tệp. Nó cung cấp chính xác công thức toán học tính toán hàm Log-Likelihood, giúp lập trình viên nhúng dễ dàng dịch ngược (reverse-engineer) thuật toán ML thành mã C/C++ thuần túy mà không cần phải gọi đến bất kỳ thư viện hỗ trợ học máy nào bên ngoài.
 
 
 \subsubsection{Kiểm thử mô hình cục bộ (Local Model Testing)}
@@ -174,7 +152,47 @@ Bước cuối cùng trước khi triển khai firmware lên phần cứng thự
     \item \textbf{Đánh giá độ tin cậy (Confidence Scoring):} Trong khi vi điều khiển có thể chỉ cần hàm \texttt{argmax()} để tìm nhãn có điểm cao nhất nhằm tiết kiệm chu kỳ CPU, PC bổ sung thêm hàm \texttt{softmax} để chuyển đổi các giá trị log-likelihood thô thành xác suất phần trăm (\%). Điều này giúp lập trình viên đánh giá độ "tự tin" của mô hình đối với từng dự đoán.
     \item \textbf{Giao diện tương tác (Interactive CLI):} Chương trình cung cấp giao diện dòng lệnh cho phép người dùng nhập tay các giá trị Nhiệt độ và Độ ẩm bất kỳ, sau đó in ra dự đoán tốt nhất (Top 1) kèm theo danh sách xếp hạng các khả năng khác (Top K).
 \end{itemize}
+\subsubsection{Tối ưu hóa toán học cho vi điều khiển (Log-Likelihood và Log-Sum-Exp)}
 
+Việc triển khai trực tiếp phương trình Gaussian Naive Bayes nguyên bản lên vi điều khiển ESP32 vấp phải hai rào cản kỹ thuật nghiêm trọng:
+\begin{enumerate}
+    \item \textbf{Tràn số dưới (Underflow):} Xác suất luôn nằm trong khoảng $[0, 1]$. Việc nhân liên tiếp nhiều giá trị xác suất siêu nhỏ sẽ khiến biến \texttt{float} trên ESP32 bị tràn giới hạn lưu trữ và trả về $0.0$, làm hỏng toàn bộ logic phân loại.
+    \item \textbf{Chi phí tính toán:} Hàm căn bậc hai (\texttt{sqrt}) và hàm mũ (\texttt{exp}) tiêu tốn rất nhiều chu kỳ xung nhịp (clock cycles), không phù hợp để tính toán lặp lại nhiều lần trên thiết bị biên.
+\end{enumerate}
+
+Để giải quyết triệt để, hệ thống áp dụng phép logarit tự nhiên ($\ln$) lên toàn bộ phương trình quyết định. Nhờ đặc tính $\ln(A \times B) = \ln(A) + \ln(B)$, phép nhân đắt đỏ được chuyển hóa thành phép cộng an toàn. Đặt $S_y$ là điểm số (score) của lớp $y$, ta có:
+
+\begin{equation}
+S_y = \ln(P(y)) + \sum_{i=1}^{n} \ln(P(x_i|y))
+\end{equation}
+
+Khai triển thành phần logarit của hàm mật độ xác suất phân phối chuẩn (Gaussian PDF) cho từng đặc trưng $i$:
+
+\begin{equation}
+\ln(P(x_i|y)) = \ln\left( (2\pi\sigma_{y,i}^2)^{-0.5} \cdot \exp\left(-\frac{(x_i - \mu_{y,i})^2}{2\sigma_{y,i}^2}\right) \right)
+\end{equation}
+
+Rút gọn biểu thức, ta thu được phương trình Log-Likelihood cuối cùng:
+
+\begin{equation}
+\ln(P(x_i|y)) = -0.5 \ln(2\pi\sigma_{y,i}^2) - 0.5 \frac{(x_i - \mu_{y,i})^2}{\sigma_{y,i}^2}
+\label{eq:log_likelihood}
+\end{equation}
+
+\textbf{Ánh xạ toán học vào mã nguồn C++:} \\
+Phương trình (\ref{eq:log_likelihood}) chính là cơ sở để xây dựng hàm \texttt{runNaiveBayes} trong tệp \texttt{tinyml.cpp}. Các phép toán phức tạp đã được tuyến tính hóa hoàn toàn:
+\begin{itemize}
+    \item Thành phần tiên nghiệm $\ln(P(y))$ tương ứng với lệnh: \\ \texttt{score = logf(fmaxf(kNbClassPrior[c], kNbEpsilon));}
+    \item Thành phần $-0.5 \ln(2\pi\sigma_{y,i}^2)$ tương ứng với lệnh: \\ \texttt{score += -0.5f * logf(2.0f * kPi * var);}
+    \item Thành phần khoảng cách $-0.5 \frac{(x_i - \mu_{y,i})^2}{\sigma_{y,i}^2}$ tương ứng với lệnh: \\ \texttt{score += -0.5f * (diff * diff / var);}
+\end{itemize}
+\textit{(Lưu ý: Biến \texttt{var} đại diện cho $\sigma^2$, \texttt{diff} đại diện cho $(x_i - \mu)$, và hằng số \texttt{kNbEpsilon} được cộng thêm nhằm tránh lỗi chia cho 0 hoặc tính $\ln(0)$).}
+
+Cuối cùng, để chuyển đổi điểm số $S_y$ ngược lại thành xác suất phần trăm (\%) mà vẫn tránh được lỗi Underflow, hệ thống sử dụng kỹ thuật \textbf{Log-Sum-Exp}. Thay vì tính trực tiếp $\exp(S_y)$, mã nguồn tìm giá trị lớn nhất (\texttt{max\_score}) và dịch chuyển trục tọa độ:
+\begin{center}
+    \texttt{class\_probs[c] = expf(class\_scores[c] - max\_score);}
+\end{center}
+Phép trừ này đảm bảo điểm số cao nhất luôn là $\exp(0) = 1.0$, giữ cho các phép tính xác suất an toàn tuyệt đối trong giới hạn của vi điều khiển.
 
 \subsubsection{Triển khai Firmware trên Vi điều khiển (On-device Deployment)}
 
@@ -191,44 +209,7 @@ Sau khi mô hình được xuất sang mảng C và kiểm chứng logic thành 
         \item \textbf{Tính toán Log-Likelihood:} Sử dụng vòng lặp để cộng dồn xác suất theo công thức phân phối Gaussian.
         \item \textbf{Hàm Softmax \& Argmax:} Tính toán xác suất (\%) cho từng lớp (\texttt{class\_probs}) và chọn ra nhãn có xác suất cao nhất (\texttt{argmax}) làm kết quả dự đoán.
     \end{enumerate}
-    \item \textbf{Cơ chế đánh giá On-device (On-the-fly Evaluation):} Một điểm sáng trong thiết kế phần mềm này là khối lệnh \texttt{tryUpdateGroundTruthFromSerial}. Nó biến ESP32 thành một công cụ tự đánh giá ngoài hiện trường. Thông qua cổng Serial, lập trình viên có thể gõ các lệnh như \texttt{gt 1} (gán nhãn đối chứng thực tế là 1) để ESP32 tự động đối chiếu dự đoán của nó với thực tế, từ đó thống kê số lượng dự đoán đúng/tổng số (\texttt{eval\_correct} / \texttt{eval\_total}).
 \end{itemize}
 
-\subsubsection*{Mã nguồn cốt lõi: Vòng lặp suy luận thời gian thực}
-
-Đoạn lệnh dưới đây minh họa cách mô hình ML hoạt động trơn tru trong môi trường RTOS mà không làm gián đoạn các luồng nghiệp vụ khác của hệ thống nhúng:
-
-\begin{lstlisting}[language=C]
-void tiny_ml_task(void *pvParameters) {
-    setupTinyML();
-    while (1) {
-        // Kiem tra cong Serial de cap nhat nhan doi chung (neu co)
-        tryUpdateGroundTruthFromSerial();
-
-        // Cho doi tin hieu (Semaphore) tu cam bien
-        if (xSemaphoreTake(xBinarySemaphoreTinyMLData, pdMS_TO_TICKS(10000)) != pdTRUE) {
-            continue;
-        }
-
-        // Chay suy luan AI
-        runNaiveBayes(glob_temperature, glob_humidity);
-        const int predicted_label = argmax(class_probs, NB_NUM_CLASSES);
-
-        // Cap nhat bien toan cuc va in ket qua
-        tinyml_predicted_label = predicted_label;
-        Serial.print("T="); Serial.print(glob_temperature, 2);
-        Serial.print(" H="); Serial.print(glob_humidity, 2);
-        Serial.print(" | Label="); Serial.println(kNbLabels[predicted_label]);
-
-        // Thong ke do chinh xac tai cho (neu bat Ground Truth)
-        if (has_ground_truth) {
-            ++eval_total;
-            if (predicted_label == ground_truth_label) ++eval_correct;
-        }
-
-        vTaskDelay(kInferencePeriodTicks); // Chu ky suy luan (5 giay)
-    }
-}
-\end{lstlisting}
 
 Toàn bộ quá trình từ thu thập, huấn luyện, xuất thông số cho đến tính toán trên vi điều khiển hoàn toàn minh bạch, không phụ thuộc vào hộp đen (black-box API) nào, tối ưu hóa đến từng byte RAM và chu kỳ xung nhịp của vi xử lý.
