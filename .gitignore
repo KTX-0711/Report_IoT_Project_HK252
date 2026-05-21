@@ -1,0 +1,10 @@
+# Windows Zone Identifier files
+*:Zone.Identifier
+*.Identifier
+
+# LaTeX auxiliary files
+*.aux
+
+# System files
+.DS_Store
+Thumbs.db

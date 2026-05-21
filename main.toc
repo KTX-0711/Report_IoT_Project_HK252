@@ -1,0 +1,71 @@
+\babel@toc {vietnamese}{}\relax 
+\contentsline {section}{\numberline {1}Giới thiệu}{3}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Tổng quan đề tài}{3}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Các nhiệm vụ và yêu cầu của đồ án}{3}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Phạm vi và giới hạn}{3}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}Bố cục báo cáo}{4}{subsection.1.4}%
+\contentsline {section}{\numberline {2}Khái niệm hệ thống và cơ sở lý thuyết}{5}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Nền tảng IoT}{5}{subsection.2.1}%
+\contentsline {subsubsection}{\numberline {2.1.1}Thông số kỹ thuật chính}{5}{subsubsection.2.1.1}%
+\contentsline {subsubsection}{\numberline {2.1.2}Các tính năng liên quan đến đề tài}{5}{subsubsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.2}Cơ sở về RTOS}{6}{subsection.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.1}Khái niệm cốt lõi}{6}{subsubsection.2.2.1}%
+\contentsline {subsubsection}{\numberline {2.2.2}Vai trò của FreeRTOS trong đồ án}{6}{subsubsection.2.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.3}Kiến trúc tác vụ sử dụng trong đồ án}{7}{subsubsection.2.2.3}%
+\contentsline {subsection}{\numberline {2.3}Cơ sở về TinyML}{7}{subsection.2.3}%
+\contentsline {subsubsection}{\numberline {2.3.1}Khái niệm cốt lõi}{7}{subsubsection.2.3.1}%
+\contentsline {subsubsection}{\numberline {2.3.2}Quy trình phát triển TinyML}{8}{subsubsection.2.3.2}%
+\contentsline {subsubsection}{\numberline {2.3.3}Ứng dụng TinyML trong đồ án}{8}{subsubsection.2.3.3}%
+\contentsline {subsection}{\numberline {2.4}Cơ sở lý thuyết mô hình Naive Bayes và Phân phối chuẩn (GaussianNB)}{9}{subsection.2.4}%
+\contentsline {subsubsection}{\numberline {2.4.1}Định lý Bayes và thuật toán Naive Bayes}{9}{subsubsection.2.4.1}%
+\contentsline {subsubsection}{\numberline {2.4.2}Biến đổi công thức với Gaussian Naive Bayes (GaussianNB)}{10}{subsubsection.2.4.2}%
+\contentsline {subsection}{\numberline {2.5}Cơ sở về CoreIoT}{10}{subsection.2.5}%
+\contentsline {subsubsection}{\numberline {2.5.1}Luồng làm việc trên đám mây và Đường truyền dữ liệu}{10}{subsubsection.2.5.1}%
+\contentsline {subsubsection}{\numberline {2.5.2}Các thành phần giám sát}{11}{subsubsection.2.5.2}%
+\contentsline {subsection}{\numberline {2.6}Tóm tắt chương}{11}{subsection.2.6}%
+\contentsline {section}{\numberline {3}Thiết kế và triển khai hệ thống}{12}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Tổng quan kiến trúc}{12}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Task 1: Nhấp nháy LED theo nhiệt độ}{12}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1} Nguyên lý hoạt động}{12}{subsubsection.3.2.1}%
+\contentsline {subsubsection}{\numberline {3.2.2}Cơ chế đồng bộ bằng FreeRTOS Semaphore}{13}{subsubsection.3.2.2}%
+\contentsline {subsubsection}{\numberline {3.2.3}Sơ đồ máy trạng thái (FSM)}{14}{subsubsection.3.2.3}%
+\contentsline {subsection}{\numberline {3.3}Task 2: Điều khiển NeoPixel theo độ ẩm}{14}{subsection.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.1} Nguyên lý hoạt động}{14}{subsubsection.3.3.1}%
+\contentsline {subsubsection}{\numberline {3.3.2}Cơ chế đồng bộ bằng FreeRTOS Semaphore}{15}{subsubsection.3.3.2}%
+\contentsline {subsubsection}{\numberline {3.3.3}Sơ đồ máy trạng thái (FSM)}{15}{subsubsection.3.3.3}%
+\contentsline {subsection}{\numberline {3.4}Task 3: Giám sát nhiệt độ và độ ẩm với LCD}{16}{subsection.3.4}%
+\contentsline {subsubsection}{\numberline {3.4.1} Nguyên lý hoạt động}{16}{subsubsection.3.4.1}%
+\contentsline {subsubsection}{\numberline {3.4.2}Cơ chế điều phối hệ thống bằng Semaphore}{16}{subsubsection.3.4.2}%
+\contentsline {subsubsection}{\numberline {3.4.3}Sơ đồ máy trạng thái (FSM)}{17}{subsubsection.3.4.3}%
+\contentsline {subsection}{\numberline {3.5}Task 4: Máy chủ web ở chế độ Access Point}{18}{subsection.3.5}%
+\contentsline {subsubsection}{\numberline {3.5.1}Kiến trúc tổng thể}{18}{subsubsection.3.5.1}%
+\contentsline {subsubsection}{\numberline {3.5.2}Quản lý mạng Wi-Fi và NVS (Non-Volatile Storage)}{18}{subsubsection.3.5.2}%
+\contentsline {subsubsection}{\numberline {3.5.3}Backend Web Server (API và Routing)}{20}{subsubsection.3.5.3}%
+\contentsline {subsubsection}{\numberline {3.5.4}Giao diện Frontend (HTML, CSS và JavaScript)}{20}{subsubsection.3.5.4}%
+\contentsline {subsubsection}{\numberline {3.5.5}Quản lý tác vụ và Luồng xử lý (Task Management)}{20}{subsubsection.3.5.5}%
+\contentsline {subsection}{\numberline {3.6}Task 5: Triển khai TinyML và đánh giá độ chính xác}{22}{subsection.3.6}%
+\contentsline {subsubsection}{\numberline {3.6.1}Tổng quan luồng thực thi của TinyML:}{22}{subsubsection.3.6.1}%
+\contentsline {subsubsection}{\numberline {3.6.2}Thu thập dữ liệu từ cảm biến (Data Collection)}{23}{subsubsection.3.6.2}%
+\contentsline {subsubsection}{\numberline {3.6.3}Tiền xử lý và Gán nhãn dữ liệu (Data Preprocessing and Labeling)}{25}{subsubsection.3.6.3}%
+\contentsline {subsubsection}{\numberline {3.6.4}Đánh giá và So sánh Mô hình (Model Benchmarking)}{25}{subsubsection.3.6.4}%
+\contentsline {subsubsection}{\numberline {3.6.5}Huấn luyện và Xuất mã C (Model Training and C Header Export)}{28}{subsubsection.3.6.5}%
+\contentsline {subsubsection}{\numberline {3.6.6}Kiểm thử mô hình cục bộ (Local Model Testing)}{29}{subsubsection.3.6.6}%
+\contentsline {subsubsection}{\numberline {3.6.7}Tối ưu hóa toán học cho vi điều khiển (Log-Likelihood và Log-Sum-Exp)}{29}{subsubsection.3.6.7}%
+\contentsline {subsubsection}{\numberline {3.6.8}Triển khai Firmware trên Vi điều khiển (On-device Deployment)}{30}{subsubsection.3.6.8}%
+\contentsline {subsection}{\numberline {3.7}Task 6: Gửi dữ liệu lên máy chủ đám mây CoreIoT}{32}{subsection.3.7}%
+\contentsline {subsubsection}{\numberline {3.7.1}Nguyên lý hoạt động}{32}{subsubsection.3.7.1}%
+\contentsline {subsubsection}{\numberline {3.7.2}Sơ đồ máy trạng thái (FSM)}{33}{subsubsection.3.7.2}%
+\contentsline {subsection}{\numberline {3.8}Cấu hình Rule Chains}{33}{subsection.3.8}%
+\contentsline {subsubsection}{\numberline {3.8.1}Rule Chain 1: Điều khiển cảnh báo chéo theo nhiệt độ}{33}{subsubsection.3.8.1}%
+\contentsline {subsubsection}{\numberline {3.8.2}Rule Chain 2: Gửi Email cảnh báo}{35}{subsubsection.3.8.2}%
+\contentsline {subsection}{\numberline {3.9}Tóm tắt chương}{38}{subsection.3.9}%
+\contentsline {section}{\numberline {4}Đánh giá và kết quả thực nghiệm}{39}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Kết quả chức năng}{39}{subsection.4.1}%
+\contentsline {subsubsection}{\numberline {4.1.1}Task 1 \& 2: LED và NeoPixel}{39}{subsubsection.4.1.1}%
+\contentsline {subsubsection}{\numberline {4.1.2}Task 3: Giám sát môi trường qua LCD}{39}{subsubsection.4.1.2}%
+\contentsline {subsubsection}{\numberline {4.1.3}Task 4: Máy chủ Web cục bộ (Local Web Server)}{40}{subsubsection.4.1.3}%
+\contentsline {subsubsection}{\numberline {4.1.4}Task 5: (TinyML)}{41}{subsubsection.4.1.4}%
+\contentsline {subsubsection}{\numberline {4.1.5}Task 6: Tích hợp đám mây CoreIoT}{42}{subsubsection.4.1.5}%
+\contentsline {subsection}{\numberline {4.2}Tóm tắt chương}{43}{subsection.4.2}%
+\contentsline {section}{\numberline {5}Kết luận}{44}{section.5}%
+\contentsline {section}{Tài liệu tham khảo}{45}{section.5}%
